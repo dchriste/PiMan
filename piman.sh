@@ -150,8 +150,8 @@ SavePreviousCFG ()
         if [ ! -z "$KILL_OMX" ]; then
              PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} killOmx")
         fi
-        if [ ! -z "$I_WANT_IT_NOW" ]; then
-             PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} now")
+	if [ ! -z "$WEBPAGE" -o ! -z "$VIDEO_PATH" ]; then
+             PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} path")
         fi
 
         Remote_CMD savePrevCFG "$PI" "$PREVIOUS_CFG"

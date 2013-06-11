@@ -5,18 +5,21 @@ CURRENT_APP=$( grep -v '^#' ${SCRIPT_DIR}/app2start | grep -m1 .. | cut -f1 -d' 
 CURRENT_URL=$( grep -v '^#' ${SCRIPT_DIR}/homepage | grep -m1 .. )
 CURRENT_PATH=$( grep -v '^#' ${SCRIPT_DIR}/video2play | grep -m1 .. )
 
+
 UsageDoc ()
 {
     cat <<End-Of-Documentation
         
     
         Usage: 
-	$0 [ -a [app name] | -h | -p [path/url] ] 
+	$0 [ -a [app name] | -h | -n | -p [path/url] | -r ] 
 
 	Options:
 	-a | --app	   The app to start on reboot
 	-h | --help        Show this help menu
+	-n | --now	   I want it all, and I want it now!
 	-p | --path 	   The desired path or url to be changed
+	-r | --revert	   Revert to previous configuration
 
 
 End-Of-Documentation
@@ -41,6 +44,9 @@ while [ "$1" != "" ]; do
     -h | --help)
         UsageDoc #function def above
        ;;
+    -n | --now)
+	I_WANT_IT_ALL=1 >&2 >&-
+       ;;
     -p | --path)   
         shift #move positional params
         if [[ "$1" != "" && $( echo "$1" | grep -v ^-. | grep -v ^--. ) ]]; then
@@ -50,6 +56,9 @@ while [ "$1" != "" ]; do
 	   UsageDoc
 	   exit
         fi
+       ;;
+    -r | --revert)
+       REVERT=1 >&2 >&-
        ;;
     -*)
        echo "Invalid option: -$1. See usage below..." >&2
@@ -62,39 +71,100 @@ while [ "$1" != "" ]; do
   shift #move positional parameters
 done
 
-if [ "$numopts" -le 1 ]; then
+if [ "$numopts" -eq 0 ]; then
    #NoArgs
    UsageDoc
-elif [ -z "$DESIRED_APP" ]; then
+elif [ -z "$DESIRED_APP" -a -z "$REVERT" ]; then
     echo "You must supply an app to modify.."
     UsageDoc
 fi
 
-if [[ "$CURRENT_APP" != "$DESIRED_APP" ]]; then
-    #change to the desired app (which must already be in the app2start file)
-    sed --in-place=.bak -e "s/\(^${CURRENT_APP}\)/#${CURRENT_APP}/g;s/\(^#${DESIRED_APP}\)/${DESIRED_APP}/g;" ${SCRIPT_DIR}/app2start
-fi
+if [ -z "$REVERT" ]; then
+   if [[ "$CURRENT_APP" != "$DESIRED_APP" ]]; then
+       #change to the desired app (which must already be in the app2start file)
+       sed --in-place=.bak -e "s/\(^${CURRENT_APP}\)/#${CURRENT_APP}/g;s/\(^#${DESIRED_APP}\)/${DESIRED_APP}/g;" ${SCRIPT_DIR}/app2start
+       echo "Desired App has been set.."
+   fi
 
-echo "Desired App has been set.."
+   #if there is a path/url to change then do so
+    if [ ! -z "$DESIRED_PATH" ]; then
+        if [[ "$DESIRED_APP" == "omxplayer" ]]; then
+            if [[ "$CURRENT_PATH" != "$DESIRED_PATH" ]]; then
+	        #change the path in video2play (assumes all other paths are commented out)
+	        sed --in-place=.bak -e "s_\(^${CURRENT_PATH}\)_#${CURRENT_PATH}_g;" ${SCRIPT_DIR}/video2play
+	        echo "$DESIRED_PATH" >> ${SCRIPT_DIR}/video2play
+            fi
+        elif [[ "$DESIRED_APP" == "midori" ]]; then
+            if [[ "$CURRENT_URL" != "$DESIRED_PATH" ]]; then
+	        #change the url to desired in homepage (assumes all other urls are commented out)
+	        sed --in-place=.bak -e "s|\(^${CURRENT_URL}\)|#${CURRENT_URL}|g;" ${SCRIPT_DIR}/homepage
+	        echo "$DESIRED_PATH" >> ${SCRIPT_DIR}/homepage
 
-#if there is a path/url to change then do so
-if [ ! -z "$DESIRED_PATH" ]; then
-    if [[ "$DESIRED_APP" == "omxplayer" ]]; then
-        if [[ "$CURRENT_PATH" != "$DESIRED_PATH" ]]; then
-	    #change the path in video2play (assumes all other paths are commented out)
-	    sed --in-place=.bak -e "s_\(^${CURRENT_PATH}\)_#${CURRENT_PATH}_g;" ${SCRIPT_DIR}/video2play
-	    echo "$DESIRED_PATH" >> ${SCRIPT_DIR}/video2play
+            fi
         fi
-    elif [[ "$DESIRED_APP" == "midori" ]]; then
-        if [[ "$CURRENT_URL" != "$DESIRED_PATH" ]]; then
-	    #change the url to desired in homepage (assumes all other urls are commented out)
-	    sed --in-place=.bak -e "s|\(^${CURRENT_URL}\)|#${CURRENT_URL}|g;" ${SCRIPT_DIR}/homepage
-	    echo "$DESIRED_PATH" >> ${SCRIPT_DIR}/homepage
-
-        fi
+        echo "Desired path/url has been set.."
     fi
-    echo "Desired path/url has been set.."
+else
+    #revert settings
+    if [ ! $(egrep -i '^blank$|^unblank$' ${SCRIPT_DIR}/previousConfig) ];then
+	for switch in $(cat ${SCRIPT_DIR}/previousConfig); do
+	   if [ ! $(echo "$switch" | grep -i blank) ]; then
+	      echo "before inner case"
+	      case $switch in
+		  midori)
+		      APP="midori"
+		      mv ${SCRIPT_DIR}/app2start ${SCRIPT_DIR}/app2start.tmp
+		      mv ${SCRIPT_DIR}/app2start.bak ${SCRIPT_DIR}/app2start #revert
+		      mv ${SCRIPT_DIR}/app2start.tmp ${SCRIPT_DIR}/app2start.bak #back up reversion
+		      ;;
+		  omxplayer)
+		      APP="omxplayer"
+		      mv ${SCRIPT_DIR}/app2start ${SCRIPT_DIR}/app2start.tmp
+		      mv ${SCRIPT_DIR}/app2start.bak ${SCRIPT_DIR}/app2start #revert
+		      mv ${SCRIPT_DIR}/app2start.tmp ${SCRIPT_DIR}/app2start.bak #back up reversion
+		      ;;
+		  killMidori)
+		      #restart midori which is already set to run
+		      I_WANT_IT_NOW=1
+		      ;;
+		  killOmx)
+		      #restart midori which is already set to run
+		      I_WANT_IT_NOW=1
+		      ;;
+		  path)
+		      if [[ "$APP" == "midori" ]]; then
+			  mv ${SCRIPT_DIR}/homepage ${SCRIPT_DIR}/homepage.tmp
+		          mv ${SCRIPT_DIR}/homepage.bak ${SCRIPT_DIR}/homepage #revert
+		          mv ${SCRIPT_DIR}/homepage.tmp ${SCRIPT_DIR}/homepage.bak #back up reversion
+		      else
+			  mv ${SCRIPT_DIR}/video2play ${SCRIPT_DIR}/video2play.tmp
+		          mv ${SCRIPT_DIR}/video2play.bak ${SCRIPT_DIR}/video2play #revert
+		          mv ${SCRIPT_DIR}/video2play.tmp ${SCRIPT_DIR}/video2play.bak #back up reversion
+
+		      fi
+	      esac
+	  else
+	      xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh #unblank	      
+	  fi 
+       done
+   else
+       if [ $(grep -i "^blank$" ${SCRIPT_DIR}/previousConfig) ]; then
+	   #unblank
+	   xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh
+       else
+	   #blank
+	   sleep 1 && xset -display :0 s blank && xset -display :0 dpms force off
+       fi
+   fi       
 fi
 
-echo 'App Management complete!'
+if [ ! -z "$I_WANT_IT_NOW" ]; then
+   if [[ "$CURRENT_APP" == "midori" ]]; then
+      killall midori
+   else
+      killall omxplayer.bin
+   fi 
+   eval $(grep -v '^#' /home/pi/scripts/app2start | grep -m1 ..) &
+   echo "App switching completed."
+fi
 

@@ -45,7 +45,7 @@ while [ "$1" != "" ]; do
         UsageDoc #function def above
        ;;
     -n | --now)
-	I_WANT_IT_ALL=1 >&2 >&-
+	I_WANT_IT_NOW=1 >&2 >&-
        ;;
     -p | --path)   
         shift #move positional params
@@ -160,9 +160,9 @@ fi
 
 if [ ! -z "$I_WANT_IT_NOW" ]; then
    if [[ "$CURRENT_APP" == "midori" ]]; then
-      killall midori
+      killall midori >/dev/null
    else
-      killall omxplayer.bin
+      killall omxplayer.bin > /dev/null
    fi 
    eval $(grep -v '^#' /home/pi/scripts/app2start | grep -m1 ..) &
    echo "App switching completed."

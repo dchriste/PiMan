@@ -76,6 +76,7 @@ Remote_CMD ()
 	omxplayer)
 	    if [ ! -z "$I_WANT_IT_NOW" ]; then
 		TMPCMD="--app omxplayer --now"
+		echo "I want it now again"
 	    else
 		TMPCMD="--app omxplayer"
 	    fi
@@ -106,7 +107,7 @@ Remote_CMD ()
 	    CMD2RUN="echo $3 > ${SCRIPT_DIR}/previousConfig"
 	    ;;
     esac
-    echo "Sending $1 command.."
+    #echo "Sending $1 command.."
     case $2 in
 	ALL | all)
 	   #ssh keys should be configured already
@@ -207,6 +208,7 @@ while [ "$1" != "" ]; do
 
        if [[ "$1" == "-on" || "$1" == "--omx-now" ]]; then
 	   I_WANT_IT_NOW=1 >&2 >&-
+	   echo "I want it now"
        fi
 
        if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then

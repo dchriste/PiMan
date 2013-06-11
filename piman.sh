@@ -3,6 +3,7 @@
 E_ARGERROR=2
 REBOOT_ERROR=3
 HOST_DNE_ERROR=4
+APP_ERROR=5
 REBOOT=0
 SCRIPT_DIR=/home/pi/scripts
 PI=""
@@ -59,21 +60,31 @@ Remote_CMD ()
 	    CMD2RUN="xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh"
 	    ;;
 	midori)
+	    if [ ! -z "$I_WANT_IT_NOW" ]; then
+		TMPCMD="--app midori --now"
+	    else
+		TMPCMD="--app midori"
+	    fi
 	    if [ ! -z "$3" ]; then
 		#there is a url
-		CMD2RUN="${SCRIPT_DIR}/AppMan.sh -a midori -p $WEBPAGE"
+		CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD} --path $WEBPAGE"
 	    else
 		#there is no url
-		CMD2RUN="${SCRIPT_DIR}/AppMan.sh -a midori"
+		CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD}"
 	    fi
 	    ;;
 	omxplayer)
+	    if [ ! -z "$I_WANT_IT_NOW" ]; then
+		TMPCMD="--app omxplayer --now"
+	    else
+		TMPCMD="--app omxplayer"
+	    fi
 	    if [ ! -z "$3" ]; then
 		#there is a path
-		CMD2RUN="${SCRIPT_DIR}/AppMan.sh -a omxplayer -p $VIDEO_PATH"
+		CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD} --path $VIDEO_PATH"
 	    else
 		#there is no path
-		CMD2RUN="${SCRIPT_DIR}/AppMan.sh -a omxplayer"
+		CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD}"
 	    fi
 	    ;;
 	killMidori)
@@ -81,6 +92,18 @@ Remote_CMD ()
 	    ;;
 	killOmx)
 	    CMD2RUN="killall omxplayer.bin"
+	    ;;
+	revert)
+	    if [ ! -z "$I_WANT_IT_NOW" ]; then
+		TMPCMD="--revert --now"
+	    else
+		TMPCMD="--revert"
+	    fi
+	    CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD}"
+	    ;;
+	savePrevCFG)
+	    #passing the string indicating what has been changed
+	    CMD2RUN="echo $3 > ${SCRIPT_DIR}/previousConfig"
 	    ;;
     esac
     echo "Sending $1 command.."
@@ -105,6 +128,39 @@ Remote_CMD ()
 
 }
 
+SavePreviousCFG ()
+{
+    
+    PREVIOUS_CFG=""
+
+    #Write to Previous config file unless it is revert time
+    if [ -z  "$REVERT" ]; then     
+	if [ ! -z "$UNBLANK" ]; then
+             PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} unblank")
+        fi
+        if [ ! -z "$BLANK" ]; then
+             PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} blank")
+        fi
+        if [ ! -z "$APP" ]; then
+             PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} $APP")
+        fi
+        if [ ! -z "$KILL_MIDORI" ]; then
+             PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} killMidori")
+        fi
+        if [ ! -z "$KILL_OMX" ]; then
+             PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} killOmx")
+        fi
+        if [ ! -z "$I_WANT_IT_NOW" ]; then
+             PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} now")
+        fi
+
+        Remote_CMD savePrevCFG "$PI" "$PREVIOUS_CFG"
+
+    else
+	sleep 0; #revert config do not save over prev cfg
+    fi
+}
+
 numopts=$#
 
 #Option Processing
@@ -122,15 +178,37 @@ while [ "$1" != "" ]; do
     -ko | --kill-omx)
 	KILL_OMX=1 >&2 >&-
 	;;
-    -m | --midori)
-       APP="midori"
+    -m | -mn | --midori | --midori-now)
+       if [ -z "$APP" ]; then
+	   APP="midori"
+       else
+	   #APP is already set, you can't have omx and midori...
+	   echo "You have already set App to $APP, pick one App not multiple."
+	   exit $APP_ERROR
+       fi
+
+       if [[ "$1" == "-mn" || "$1" == "--midori-now" ]]; then
+	   I_WANT_IT_NOW=1 >&2 >&-
+       fi
+
        if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then
            shift #move positional params
 	   WEBPAGE=$1
        fi
        ;;
-    -o | --omxplayer)
-       APP="omxplayer"
+    -o | -on | --omxplayer | --omx-now)
+       if [ -z "$APP" ]; then
+	   APP="omxplayer"
+       else
+	   #APP is already set, you can't have omx and midori...
+	   echo "You have already set App to $APP, pick one App not multiple."
+	   exit $APP_ERROR
+       fi
+
+       if [[ "$1" == "-on" || "$1" == "--omx-now" ]]; then
+	   I_WANT_IT_NOW=1 >&2 >&-
+       fi
+
        if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then
            shift #move positional params
 	   VIDEO_PATH=$1
@@ -150,6 +228,14 @@ while [ "$1" != "" ]; do
 	   exit
        fi
        ;;
+    -pc | -pcn | --prev-cfg | --prev-cfg-now)
+       if [[ "$1" == "-pcn" || "$1" == "--prev-cfg-now" ]]; then
+	   I_WANT_IT_NOW=1 >&2 >&-
+       fi
+
+       REVERT=1 >&2 >&-
+
+       ;;    
     -r | --reboot)
         REBOOT=1 >&2 >&-
        ;;
@@ -175,6 +261,8 @@ elif [ -z "$PI" ]; then
     UsageDoc
 fi
 
+SavePreviousCFG; #makes note of the config you chose for later
+
 #blank or unblank (priority to unblank) but not both
 if [[ "$UNBLANK" == "1" ]]; then
     Remote_CMD unblank $PI
@@ -184,6 +272,7 @@ elif [[ "$BLANK" == "1" ]]; then
     echo "Screen on $PI has been blanked"'!'
 fi
 
+#note omxplayer has preference in the case it is read in.
 if [[ "$APP" != "" ]]; then
     if [[ "$APP" == "midori" ]]; then
 	if [ ! -z "$WEBPAGE" ]; then
@@ -206,6 +295,11 @@ if [[ "$KILL_MIDORI" == "1" ]]; then
 elif [[ "$KILL_OMX" == "1" ]]; then
     Remote_CMD killOmx "$PI"
     echo "Application Killed.."
+fi
+
+if [[ "$REVERT" == "1" ]]; then
+    Remote_CMD revert "$PI"
+    echo "Reverted most recent changes."
 fi
 
 if [[ "$REBOOT" == "1" ]]; then

@@ -109,7 +109,7 @@ if [ -z "$REVERT" -a -z "$LIST_CONFIG" ]; then
         fi
         echo "Desired path/url has been set.."
     fi
-else
+elif [ ! -z "$REVERT" ]; then
     #revert settings
     if [ ! $(egrep -i '^blank$|^unblank$' ${SCRIPT_DIR}/previousConfig) ];then
 	for switch in $(cat ${SCRIPT_DIR}/previousConfig); do

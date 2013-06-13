@@ -12,11 +12,13 @@ UsageDoc ()
         
     
         Usage: 
-	$0 [ -a [app name] | -h | -n | -p [path/url] | -r ] 
+	$0 
+	[ -a [app name] | -h | -l | -n | -p [path/url] | -r ] 
 
 	Options:
 	-a | --app	   The app to start on reboot
 	-h | --help        Show this help menu
+	-l | --list	   List the current configuration
 	-n | --now	   I want it all, and I want it now!
 	-p | --path 	   The desired path or url to be changed
 	-r | --revert	   Revert to previous configuration
@@ -44,6 +46,9 @@ while [ "$1" != "" ]; do
     -h | --help)
         UsageDoc #function def above
        ;;
+    -l | --list)
+	LIST_CONFIG=1 >&2 >&-
+	;;
     -n | --now)
 	I_WANT_IT_NOW=1 >&2 >&-
        ;;
@@ -74,12 +79,12 @@ done
 if [ "$numopts" -eq 0 ]; then
    #NoArgs
    UsageDoc
-elif [ -z "$DESIRED_APP" -a -z "$REVERT" ]; then
+elif [ -z "$DESIRED_APP" -a -z "$REVERT" -a -z "$LIST_CONFIG" ]; then
     echo "You must supply an app to modify.."
     UsageDoc
 fi
 
-if [ -z "$REVERT" ]; then
+if [ -z "$REVERT" -a -z "$LIST_CONFIG" ]; then
    if [[ "$CURRENT_APP" != "$DESIRED_APP" ]]; then
        #change to the desired app (which must already be in the app2start file)
        sed --in-place=.bak -e "s/\(^${CURRENT_APP}\)/#${CURRENT_APP}/g;s/\(^#${DESIRED_APP}\)/${DESIRED_APP}/g;" ${SCRIPT_DIR}/app2start
@@ -148,16 +153,21 @@ else
 		      ;;
 	      esac
 	  else
-	      xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh #unblank	      
+	      if [ -f /tmp/screenblanked ]; then
+ 	         xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh #unblank	      
+		 rm /tmp/screenblanked
+	      fi
 	  fi 
        done
    else
        if [ $(grep -i "^blank$" ${SCRIPT_DIR}/previousConfig) ]; then
 	   #unblank
 	   xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh
+	   rm /tmp/screenblanked > /dev/null
        else
 	   #blank
 	   sleep 1 && xset -display :0 s blank && xset -display :0 dpms force off
+	   touch /tmp/screenblanked 
        fi
    fi       
 fi
@@ -171,5 +181,23 @@ if [ ! -z "$I_WANT_IT_NOW" ]; then
    fi 
    eval nohup $(grep -v '^#' /home/pi/scripts/app2start | grep -m1 ..) &
    echo "App switching completed."
+fi
+
+if [ ! -z "$LIST_CONFIG" ]; then
+    #Bring me that Medallion
+    echo ""
+    echo "/*************************/"
+    echo "Config for $HOSTNAME:"
+    echo "App: $CURRENT_APP"
+    echo "Webpage: $CURRENT_URL"
+    echo "Video: $CURRENT_PATH"
+    if [ -f "/tmp/screenblanked" ];then
+	echo "Screen is: blank"
+    else
+	echo "Screen is: not blank"
+    fi
+    echo "Most Recent CMD(s): $(cat ${SCRIPT_DIR}/previousConfig) "
+    echo "/*************************/"
+    echo ""
 fi
 

@@ -20,7 +20,7 @@ UsageDoc ()
     
         Usage: 
 	$0 
-	[ -b | -h | -km | -ko | -m [url] | -mn [url]  
+	[ -b | -h | -km | -ko | -l | -m [url] | -mn [url]  
 	| -o [path] | -on [path] | -p [hostname] | -pc  
 	| -pcn | -r | -u ] 
 
@@ -29,6 +29,7 @@ UsageDoc ()
 	-h   | --help         Show this help menu
 	-km  | --kill-midori  Kills all midori processes
 	-ko  | --kill-omx     Kills all omxplayer processes
+	-l   | --list	      List the current configuration
 	-m   | --midori       Use midori with the url 
 			      (either provided or default)
 	-mn  | --midori-now   You want midori now, not later		    
@@ -54,10 +55,10 @@ Remote_CMD ()
 	    CMD2RUN="sudo shutdown -r now"
 	    ;;
 	blank)
-	    CMD2RUN="sleep 1 && xset -display :0 s blank && xset -display :0 dpms force off"
+	    CMD2RUN="sleep 1 && xset -display :0 s blank && xset -display :0 dpms force off && touch /tmp/screenblanked"
 	    ;;
 	unblank)
-	    CMD2RUN="xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh"
+	    CMD2RUN="xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh && rm /tmp/screenblanked > /dev/null"
 	    ;;
 	midori)
 	    if [ ! -z "$I_WANT_IT_NOW" ]; then
@@ -105,6 +106,9 @@ Remote_CMD ()
 	    #passing the string indicating what has been changed
 	    CMD2RUN="mv ${SCRIPT_DIR}/previousConfig ${SCRIPT_DIR}/previousConfig.bak && echo $3 > ${SCRIPT_DIR}/previousConfig"
 	    ;;
+	 list)
+	    CMD2RUN="${SCRIPT_DIR}/AppMan.sh --list"
+	    ;;
     esac
     #echo "Sending $1 command.."
     case $2 in
@@ -134,7 +138,7 @@ SavePreviousCFG ()
     PREVIOUS_CFG=""
 
     #Write to Previous config file unless it is revert time
-    if [ -z  "$REVERT" ]; then     
+    if [ -z  "$REVERT" -a -z "$LIST_CONFIG" ]; then     
 	if [ ! -z "$UNBLANK" ]; then
              PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} unblank")
         fi
@@ -181,6 +185,9 @@ while [ "$1" != "" ]; do
     -ko | --kill-omx)
 	KILL_OMX=1 >&2 >&-
 	;;
+    -l  | --list)
+        LIST_CONFIG=1 >&2 >&-
+        ;;
     -m | -mn | --midori | --midori-now)
        if [ -z "$APP" ]; then
 	   APP="midori"
@@ -298,6 +305,10 @@ if [[ "$KILL_MIDORI" == "1" ]]; then
 elif [[ "$KILL_OMX" == "1" ]]; then
     Remote_CMD killOmx "$PI"
     echo "Application Killed.."
+fi
+
+if [ ! -z "$LIST_CONFIG" ]; then
+    Remote_CMD list "$PI"
 fi
 
 if [[ "$REVERT" == "1" ]]; then

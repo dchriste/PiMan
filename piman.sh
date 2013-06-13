@@ -290,12 +290,14 @@ if [[ "$APP" != "" ]]; then
 	else
 	    Remote_CMD midori "$PI"
 	fi
+	echo "Midori started."
     elif [[ "$APP" == "omxplayer" ]]; then
 	if [ ! -z "$VIDEO_PATH" ]; then
 	    Remote_CMD omxplayer "$PI" "$VIDEO_PATH"
 	else 
 	    Remote_CMD omxplayer "$PI"
 	fi
+	echo "Omxplayer started"
     fi
 fi
 

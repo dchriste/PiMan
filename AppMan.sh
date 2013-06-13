@@ -28,6 +28,14 @@ End-Of-Documentation
 exit
 }
 
+UNBLANK_NOW ()
+{
+	if [ -f /tmp/screenblanked ]; then
+ 	   xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh #unblank	      
+	   rm /tmp/screenblanked
+	fi
+}
+
 numopts=$#
 
 #Option Processing
@@ -153,17 +161,12 @@ elif [ ! -z "$REVERT" ]; then
 		      ;;
 	      esac
 	  else
-	      if [ -f /tmp/screenblanked ]; then
- 	         xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh #unblank	      
-		 rm /tmp/screenblanked
-	      fi
+	      UNBLANK_NOW;
 	  fi 
        done
    else
        if [ $(grep -i "^blank$" ${SCRIPT_DIR}/previousConfig) ]; then
-	   #unblank
-	   xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh
-	   rm /tmp/screenblanked > /dev/null
+	   UNBLANK_NOW;
        else
 	   #blank
 	   sleep 1 && xset -display :0 s blank && xset -display :0 dpms force off
@@ -178,7 +181,8 @@ if [ ! -z "$I_WANT_IT_NOW" ]; then
    else
       killall omxplayer.bin > /dev/null
       xrefresh -display :0
-   fi 
+   fi
+   UNBLANK_NOW; 
    eval nohup $(grep -v '^#' /home/pi/scripts/app2start | grep -m1 ..) &
    echo "App switching completed."
 fi
@@ -195,6 +199,11 @@ if [ ! -z "$LIST_CONFIG" ]; then
 	echo "Screen is: blank"
     else
 	echo "Screen is: not blank"
+    fi
+    if [[ $(ps aux | grep -i omxplayer | grep -v grep) ]]; then
+	echo "Running: omxplayer"
+    elif [[ $(ps aux | grep -i midori | grep -v grep) ]]; then
+	echo "Running: midori"
     fi
     echo "Most Recent CMD(s): $(cat ${SCRIPT_DIR}/previousConfig) "
     echo "/*************************/"

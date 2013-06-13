@@ -164,7 +164,7 @@ if [ ! -z "$I_WANT_IT_NOW" ]; then
    else
       killall omxplayer.bin > /dev/null
    fi 
-   eval $(grep -v '^#' /home/pi/scripts/app2start | grep -m1 ..) &
+   eval nohup $(grep -v '^#' /home/pi/scripts/app2start | grep -m1 ..) &
    echo "App switching completed."
 fi
 

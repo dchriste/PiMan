@@ -63,7 +63,7 @@ Remote_CMD ()
 	    if [ ! -z "$I_WANT_IT_NOW" ]; then
 		TMPCMD="--app midori --now"
 	    else
-		TMPCMD="--app midori"
+		TMPCMD="--app midori" 
 	    fi
 	    if [ ! -z "$3" ]; then
 		#there is a url
@@ -78,7 +78,7 @@ Remote_CMD ()
 		TMPCMD="--app omxplayer --now"
 		echo "I want it now again"
 	    else
-		TMPCMD="--app omxplayer"
+		TMPCMD="--app omxplayer" 
 	    fi
 	    if [ ! -z "$3" ]; then
 		#there is a path
@@ -89,14 +89,14 @@ Remote_CMD ()
 	    fi
 	    ;;
 	killMidori)
-	    CMD2RUN="killall midori"
+	    CMD2RUN="killall midori > /dev/null"
 	    ;;
 	killOmx)
-	    CMD2RUN="killall omxplayer.bin"
+	    CMD2RUN="killall omxplayer.bin > /dev/null"
 	    ;;
 	revert)
 	    if [ ! -z "$I_WANT_IT_NOW" ]; then
-		TMPCMD="--revert --now"
+		TMPCMD="--revert --now" 
 	    else
 		TMPCMD="--revert"
 	    fi
@@ -112,18 +112,18 @@ Remote_CMD ()
 	ALL | all)
 	   #ssh keys should be configured already
 	   #along with ~/.ssh/config or /etc/hosts
-	   ssh rpi1 $(echo -n $CMD2RUN)
-	   ssh rpi2 $(echo -n $CMD2RUN)
-	   ssh rpi3 $(echo -n $CMD2RUN) 
+	   ssh -n rpi1 $(echo -n $CMD2RUN) &
+	   ssh -n rpi2 $(echo -n $CMD2RUN) &
+	   ssh -n rpi3 $(echo -n $CMD2RUN) &
 	   ;;
 	1 | rpi1)
-	   ssh rpi1 $(echo -n $CMD2RUN)
+	   ssh -n rpi1 $(echo -n $CMD2RUN) &
 	   ;;
 	2 | rpi2)
-	   ssh rpi2 $(echo -n $CMD2RUN) 
+	   ssh -n rpi2 $(echo -n $CMD2RUN) &
 	   ;;
 	3 | rpi3)
-	   ssh rpi3 $(echo -n $CMD2RUN) 
+	   ssh -n rpi3 $(echo -n $CMD2RUN) &
 	   ;;
     esac
 

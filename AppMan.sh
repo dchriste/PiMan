@@ -109,7 +109,6 @@ else
     if [ ! $(egrep -i '^blank$|^unblank$' ${SCRIPT_DIR}/previousConfig) ];then
 	for switch in $(cat ${SCRIPT_DIR}/previousConfig); do
 	   if [ ! $(echo "$switch" | grep -i blank) ]; then
-	      echo "before inner case"
 	      case $switch in
 		  midori)
 		      APP="midori"
@@ -142,6 +141,11 @@ else
 		          mv ${SCRIPT_DIR}/video2play.tmp ${SCRIPT_DIR}/video2play.bak #back up reversion
 
 		      fi
+		      ;;
+		  now)
+		      #revert changes now because the previous command was replaced with 'now'
+		      I_WANT_IT_NOW=1
+		      ;;
 	      esac
 	  else
 	      xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh #unblank	      
@@ -163,6 +167,7 @@ if [ ! -z "$I_WANT_IT_NOW" ]; then
       killall midori >/dev/null
    else
       killall omxplayer.bin > /dev/null
+      xrefresh -display :0
    fi 
    eval nohup $(grep -v '^#' /home/pi/scripts/app2start | grep -m1 ..) &
    echo "App switching completed."

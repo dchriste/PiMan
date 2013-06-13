@@ -61,13 +61,13 @@ Remote_CMD ()
 	    ;;
 	midori)
 	    if [ ! -z "$I_WANT_IT_NOW" ]; then
-		TMPCMD="--app midori --now"
+		TMPCMD="--app midori --now >&- "
 	    else
-		TMPCMD="--app midori" 
+		TMPCMD="--app midori >&- " 
 	    fi
 	    if [ ! -z "$3" ]; then
 		#there is a url
-		CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD} --path $WEBPAGE"
+		CMD2RUN="${SCRIPT_DIR}/AppMan.sh --path $WEBPAGE ${TMPCMD}"
 	    else
 		#there is no url
 		CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD}"
@@ -75,14 +75,13 @@ Remote_CMD ()
 	    ;;
 	omxplayer)
 	    if [ ! -z "$I_WANT_IT_NOW" ]; then
-		TMPCMD="--app omxplayer --now"
-		echo "I want it now again"
+		TMPCMD="--app omxplayer --now >&- "
 	    else
-		TMPCMD="--app omxplayer" 
+		TMPCMD="--app omxplayer >&- " 
 	    fi
 	    if [ ! -z "$3" ]; then
 		#there is a path
-		CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD} --path $VIDEO_PATH"
+		CMD2RUN="${SCRIPT_DIR}/AppMan.sh --path $VIDEO_PATH ${TMPCMD}"
 	    else
 		#there is no path
 		CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD}"
@@ -92,7 +91,7 @@ Remote_CMD ()
 	    CMD2RUN="killall midori > /dev/null"
 	    ;;
 	killOmx)
-	    CMD2RUN="killall omxplayer.bin > /dev/null"
+	    CMD2RUN="killall omxplayer.bin 2>&1>&- && sleep 1 && xrefresh -display :0"
 	    ;;
 	revert)
 	    if [ ! -z "$I_WANT_IT_NOW" ]; then
@@ -100,11 +99,11 @@ Remote_CMD ()
 	    else
 		TMPCMD="--revert"
 	    fi
-	    CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD}"
+	    CMD2RUN="${SCRIPT_DIR}/AppMan.sh ${TMPCMD} >&- "
 	    ;;
 	savePrevCFG)
 	    #passing the string indicating what has been changed
-	    CMD2RUN="echo $3 > ${SCRIPT_DIR}/previousConfig"
+	    CMD2RUN="mv ${SCRIPT_DIR}/previousConfig ${SCRIPT_DIR}/previousConfig.bak && echo $3 > ${SCRIPT_DIR}/previousConfig"
 	    ;;
     esac
     #echo "Sending $1 command.."
@@ -112,18 +111,18 @@ Remote_CMD ()
 	ALL | all)
 	   #ssh keys should be configured already
 	   #along with ~/.ssh/config or /etc/hosts
-	   ssh -n rpi1 $(echo -n $CMD2RUN) &
-	   ssh -n rpi2 $(echo -n $CMD2RUN) &
-	   ssh -n rpi3 $(echo -n $CMD2RUN) &
+	   ssh -n rpi1 "$(echo -n $CMD2RUN) 2>&- &"
+	   ssh -n rpi2 "$(echo -n $CMD2RUN) 2>&- &"
+	   ssh -n rpi3 "$(echo -n $CMD2RUN) 2>&- &"
 	   ;;
 	1 | rpi1)
-	   ssh -n rpi1 $(echo -n $CMD2RUN) &
+	   ssh -n rpi1 "$(echo -n $CMD2RUN) 2>&- &"
 	   ;;
 	2 | rpi2)
-	   ssh -n rpi2 $(echo -n $CMD2RUN) &
+	   ssh -n rpi2 "$(echo -n $CMD2RUN) 2>&- &"
 	   ;;
 	3 | rpi3)
-	   ssh -n rpi3 $(echo -n $CMD2RUN) &
+	   ssh -n rpi3 "$(echo -n $CMD2RUN) 2>&- &"
 	   ;;
     esac
 
@@ -153,6 +152,9 @@ SavePreviousCFG ()
         fi
 	if [ ! -z "$WEBPAGE" -o ! -z "$VIDEO_PATH" ]; then
              PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} path")
+        fi
+	if [ ! -z "$I_WANT_IT_NOW" ]; then
+             PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} now")
         fi
 
         Remote_CMD savePrevCFG "$PI" "$PREVIOUS_CFG"
@@ -208,7 +210,6 @@ while [ "$1" != "" ]; do
 
        if [[ "$1" == "-on" || "$1" == "--omx-now" ]]; then
 	   I_WANT_IT_NOW=1 >&2 >&-
-	   echo "I want it now"
        fi
 
        if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then

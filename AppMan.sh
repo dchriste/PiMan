@@ -200,9 +200,11 @@ if [ ! -z "$LIST_CONFIG" ]; then
     else
 	echo "Screen is: not blank"
     fi
-    if [[ $(ps aux | grep -i omxplayer | grep -v grep) ]]; then
+    runningApps=$(ps aux)
+
+    if [[ $(echo "$runningApps" | grep -i omxplayer | grep -v grep) ]]; then
 	echo "Running: omxplayer"
-    elif [[ $(ps aux | grep -i midori | grep -v grep) ]]; then
+    elif [[ $(echo "$runningApps" | grep -i midori | grep -v grep) ]]; then
 	echo "Running: midori"
     fi
     echo "Most Recent CMD(s): $(cat ${SCRIPT_DIR}/previousConfig) "

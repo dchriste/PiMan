@@ -12,6 +12,9 @@ WEBPAGE=""
 VIDEO_PATH=""
 I_WANT_IT_NOW=""
 
+#Define Max Number of Pis in existance
+NUMPIS=3
+
 ##functions
 UsageDoc ()
 {
@@ -115,21 +118,14 @@ Remote_CMD ()
 	ALL | all)
 	   #ssh keys should be configured already
 	   #along with ~/.ssh/config or /etc/hosts
-	   ssh -n rpi1 "$(echo -n $CMD2RUN) 2>&- &"
-	   ssh -n rpi2 "$(echo -n $CMD2RUN) 2>&- &"
-	   ssh -n rpi3 "$(echo -n $CMD2RUN) 2>&- &"
+	   for $host in {1..$NUMPIS}; do
+	       ssh -n -p 13524 pi@brkrpikiosk${host} "$(echo -n $CMD2RUN) 2>&- &"
+	   done
 	   ;;
-	1 | rpi1)
-	   ssh -n rpi1 "$(echo -n $CMD2RUN) 2>&- &"
-	   ;;
-	2 | rpi2)
-	   ssh -n rpi2 "$(echo -n $CMD2RUN) 2>&- &"
-	   ;;
-	3 | rpi3)
-	   ssh -n rpi3 "$(echo -n $CMD2RUN) 2>&- &"
+	[0-$NUMPIS])
+	   ssh -n -p 13524 pi@brkrpikiosk${2} "$(echo -n $CMD2RUN) 2>&- &"
 	   ;;
     esac
-
 }
 
 SavePreviousCFG ()
@@ -228,15 +224,23 @@ while [ "$1" != "" ]; do
        shift #move positional params
        if [[ "$1" != "" && $( echo "$1" | grep -v ^-. | grep -v ^--. ) ]];then
            PI=$1
-	   if [[ ! $( echo "$PI" | egrep -i "^rpi[1-3]$|^[1-3]$|^ALL$" ) ]]; then
+	   if [[ ! $( echo "$PI" | egrep -i "^rpi[1-$NUMPIS]$|^[1-$NUMPIS]$|^ALL$" ) ]]; then
 	       echo "Host does not exist: $PI" && echo ""
 	       exit $HOST_DNE_ERROR
+	   else
+		#host does exist
+		if [[ "$PI" =~ "rpi" ]]; then
+		    PI=$(echo "$PI" | cut -f2 -d'i')
+		fi
 	   fi
        else
 	   echo "" && echo "Option -p or --pi requires an argument." && echo ""
 	   UsageDoc
 	   exit
        fi
+       ;;
+    -p[0-$NUMPIS])
+       PI=$(echo "$1" | cut -f2 -d'p')
        ;;
     -pc | -pcn | --prev-cfg | --prev-cfg-now)
        if [[ "$1" == "-pcn" || "$1" == "--prev-cfg-now" ]]; then
@@ -290,15 +294,18 @@ if [[ "$APP" != "" ]]; then
 	else
 	    Remote_CMD midori "$PI"
 	fi
-	echo "Midori started."
     elif [[ "$APP" == "omxplayer" ]]; then
 	if [ ! -z "$VIDEO_PATH" ]; then
 	    Remote_CMD omxplayer "$PI" "$VIDEO_PATH"
 	else 
 	    Remote_CMD omxplayer "$PI"
 	fi
-	echo "Omxplayer started"
     fi
+    
+    echo -n "$APP "; if [ -z "$I_WANT_IT_NOW" ]; then 
+    echo -n "set to run on reboot."; else
+    echo -n "starting shortly.";fi
+
 fi
 
 if [[ "$KILL_MIDORI" == "1" ]]; then

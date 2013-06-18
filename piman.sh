@@ -119,11 +119,11 @@ Remote_CMD ()
 	   #ssh keys should be configured already
 	   #along with ~/.ssh/config or /etc/hosts
 	   for $host in {1..$NUMPIS}; do
-	       ssh -n -p 13524 pi@brkrpikiosk${host} "$(echo -n $CMD2RUN) 2>&- &"
+	       ssh -n rpi${host} "$(echo -n $CMD2RUN) 2>&- &"
 	   done
 	   ;;
 	[0-$NUMPIS])
-	   ssh -n -p 13524 pi@brkrpikiosk${2} "$(echo -n $CMD2RUN) 2>&- &"
+	   ssh -n rpi${2} "$(echo -n $CMD2RUN) 2>&- &"
 	   ;;
     esac
 }

@@ -16,6 +16,7 @@ I_WANT_IT_NOW=""
 NUMPIS=3
 
 ##functions
+#usage is: UsageDoc [exit code]
 UsageDoc ()
 {
     cat <<End-Of-Documentation
@@ -23,12 +24,14 @@ UsageDoc ()
     
         Usage: 
 	$0 
-	[ -b | -h | -km | -ko | -l | -m [url] | -mn [url]  
-	| -o [path] | -on [path] | -p [hostname] | -pc  
-	| -pcn | -r | -u ] 
+	[ -b | -c [cmd] | -h | -km | -ko | -l | -m [url]
+	| -mn [url] | -o [path] | -on [path] | -p [hostname] 
+	| -pc  | -pcn | -r | -u ] 
 
 	Options:
 	-b   | --blank	      Blank the monitor using dpms
+	-c   | --cmd	      Pass a command to the machine
+			      NOTE: use "" on multi word cmds
 	-h   | --help         Show this help menu
 	-km  | --kill-midori  Kills all midori processes
 	-ko  | --kill-omx     Kills all omxplayer processes
@@ -47,7 +50,7 @@ UsageDoc ()
 
 
 End-Of-Documentation
-exit
+exit $1
 }
 
 #use like: Remote_CMD [pseudo command] [host] [webpage/path]
@@ -112,8 +115,12 @@ Remote_CMD ()
 	 list)
 	    CMD2RUN="${SCRIPT_DIR}/AppMan.sh --list"
 	    ;;
+	 cmd)
+	    CMD2RUN="$CMD2PASS"
+	    ;;
     esac
     #echo "Sending $1 command.."
+    
     case $2 in
 	ALL | all)
 	   #ssh keys should be configured already
@@ -125,7 +132,11 @@ Remote_CMD ()
 	[0-$NUMPIS])
 	   ssh -n rpi${2} "$(echo -n $CMD2RUN) 2>&- &"
 	   ;;
+	*)
+	   echo "Host not specified...Who wrote this?"
+	   ;;
     esac
+   
 }
 
 SavePreviousCFG ()
@@ -134,7 +145,7 @@ SavePreviousCFG ()
     PREVIOUS_CFG=""
 
     #Write to Previous config file unless it is revert time
-    if [ -z  "$REVERT" -a -z "$LIST_CONFIG" ]; then     
+    if [ -z  "$REVERT" -a -z "$LIST_CONFIG" -a -z "$CMD2PASS" ]; then     
 	if [ ! -z "$UNBLANK" ]; then
              PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} unblank")
         fi
@@ -172,8 +183,17 @@ while [ "$1" != "" ]; do
     -b | --blank)
 	BLANK=1 >&2 >&-
 	;;
+    -c | --cmd)
+        if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then
+            shift #move positional params
+	    CMD2PASS="$1"
+	else
+	    echo "Arg $1 requires a command to be passed to it."'!'
+	    UsageDoc $E_ARGERROR
+	fi
+   	;; 
     -h | --help)
-        UsageDoc #function def above
+        UsageDoc 0 #function def above
        ;;
     -km | --kill-midori)
 	KILL_MIDORI=1 >&2 >&-
@@ -235,7 +255,7 @@ while [ "$1" != "" ]; do
 	   fi
        else
 	   echo "" && echo "Option -p or --pi requires an argument." && echo ""
-	   UsageDoc
+	   UsageDoc $E_ARGERROR
 	   exit
        fi
        ;;
@@ -258,32 +278,33 @@ while [ "$1" != "" ]; do
        ;;
     -*)
        echo "Invalid option: -$1. See usage below..." >&2
-       UsageDoc
-       exit $E_ARGERROR
+       UsageDoc $E_ARGERROR
        ;;
      *)
-       UsageDoc
+       echo "What is $1 supposed to be?"
+       UsageDoc $E_ARGERROR
+       ;;
   esac
   shift #move positional parameters
 done
 
 if [ "$numopts" -le 1 ]; then
    #NoArgs
-   UsageDoc
+   UsageDoc 0
 elif [ -z "$PI" ]; then
     echo "You must specify a host..."
-    UsageDoc
+    UsageDoc $HOST_DNE_ERROR
 fi
 
 SavePreviousCFG; #makes note of the config you chose for later
 
 #blank or unblank (priority to unblank) but not both
 if [[ "$UNBLANK" == "1" ]]; then
-    Remote_CMD unblank $PI
-    echo "Screen on $PI has been activated"'!'
+    Remote_CMD unblank "$PI"
+    echo "Screen has been activated"'!'
 elif [[ "$BLANK" == "1" ]]; then
-    Remote_CMD blank $PI
-    echo "Screen on $PI has been blanked"'!'
+    Remote_CMD blank "$PI"
+    echo "Screen has been blanked"'!'
 fi
 
 #note omxplayer has preference in the case it is read in.
@@ -305,7 +326,7 @@ if [[ "$APP" != "" ]]; then
     echo -n "$APP "; if [ -z "$I_WANT_IT_NOW" ]; then 
     echo -n "set to run on reboot."; else
     echo -n "starting shortly.";fi
-
+    echo ""
 fi
 
 if [[ "$KILL_MIDORI" == "1" ]]; then
@@ -323,6 +344,10 @@ fi
 if [[ "$REVERT" == "1" ]]; then
     Remote_CMD revert "$PI"
     echo "Reverted most recent changes."
+fi
+
+if [ ! -z "$CMD2PASS" ]; then
+    Remote_CMD cmd "$PI"
 fi
 
 if [[ "$REBOOT" == "1" ]]; then

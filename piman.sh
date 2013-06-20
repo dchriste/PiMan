@@ -122,7 +122,7 @@ Remote_CMD ()
     #echo "Sending $1 command.."
     
     case $2 in
-	ALL | all)
+	ALL | all | A | a)
 	   #ssh keys should be configured already
 	   #along with ~/.ssh/config or /etc/hosts
 	   for (( i=1; i<=$NUMPIS; i++ )); do
@@ -262,7 +262,7 @@ while [ "$1" != "" ]; do
 	   exit
        fi
        ;;
-    -p[0-$NUMPIS])
+    -p[0-$NUMPIS] | -pa)
        PI=$(echo "$1" | cut -f2 -d'p')
        ;;
     -pc | -pcn | --prev-cfg | --prev-cfg-now)

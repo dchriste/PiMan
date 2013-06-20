@@ -192,6 +192,7 @@ if [ ! -z "$LIST_CONFIG" ]; then
     echo ""
     echo "/*************************/"
     echo "Config for $HOSTNAME:"
+    echo "Uptime: $(uptime | cut -f1 -d',' | cut -f2 -d'p' )"
     echo "App: $CURRENT_APP"
     echo "Webpage: $CURRENT_URL"
     echo "Video: $CURRENT_PATH"

@@ -26,7 +26,7 @@ UsageDoc ()
 	$0 
 	[ -b | -c [cmd] | -h | -km | -ko | -l | -m [url]
 	| -mn [url] | -o [path] | -on [path] | -p [hostname] 
-	| -pc  | -pcn | -r | -u ] 
+	| -pc  | -pcn | -r | -t | -u ] 
 
 	Options:
 	-b   | --blank	      Blank the monitor using dpms
@@ -46,6 +46,7 @@ UsageDoc ()
 	-pc  | --prev-cfg     Reverse changes made last
 	-pcn | --prev-cfg-now Reverse changes immediately
 	-r   | --reboot       Apply the settings then reboot
+	-t   | --tour	      Run the Tour Video then reset
 	-u   | --unblank      Unblank the monitor using dpms
 
 
@@ -64,7 +65,7 @@ Remote_CMD ()
 	    CMD2RUN="sleep 1 && xset -display :0 s blank && xset -display :0 dpms force off && touch /tmp/screenblanked"
 	    ;;
 	unblank)
-	    CMD2RUN="xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh && rm /tmp/screenblanked > /dev/null"
+	    CMD2RUN="xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh && xrefresh -display :0 && rm /tmp/screenblanked > /dev/null"
 	    ;;
 	midori)
 	    if [ ! -z "$I_WANT_IT_NOW" ]; then
@@ -118,6 +119,9 @@ Remote_CMD ()
 	 cmd)
 	    CMD2RUN="$CMD2PASS"
 	    ;;
+	 tour)
+            CMD2RUN="${SCRIPT_DIR}/AppMan.sh --tour --now"
+            ;;	    
     esac
     #echo "Sending $1 command.."
     
@@ -276,6 +280,9 @@ while [ "$1" != "" ]; do
     -r | --reboot)
         REBOOT=1 >&2 >&-
        ;;
+    -t | --tour)
+    	TOUR=1 >&2 >&-
+       ;;
     -u | --unblank)
 	UNBLANK=1 >&2 >&-
        ;;
@@ -350,6 +357,10 @@ fi
 
 if [ ! -z "$CMD2PASS" ]; then
     Remote_CMD cmd "$PI"
+fi
+
+if [ ! -z "$TOUR" ]; then
+    Remote_CMD tour "$PI"
 fi
 
 if [[ "$REBOOT" == "1" ]]; then

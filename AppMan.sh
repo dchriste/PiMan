@@ -22,6 +22,7 @@ UsageDoc ()
 	-n | --now	   I want it all, and I want it now!
 	-p | --path 	   The desired path or url to be changed
 	-r | --revert	   Revert to previous configuration
+	-t | --tour	   Tour video and then revert
 
 
 End-Of-Documentation
@@ -33,6 +34,7 @@ UNBLANK_NOW ()
 	if [ -f /tmp/screenblanked ]; then
  	   xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh #unblank	      
 	   rm /tmp/screenblanked
+	   xrefresh -display :0
 	fi
 }
 
@@ -73,6 +75,9 @@ while [ "$1" != "" ]; do
     -r | --revert)
        REVERT=1 >&2 >&-
        ;;
+    -t | --tour)
+       TOUR=1 >&2 >&-
+       ;;
     -*)
        echo "Invalid option: -$1. See usage below..." >&2
        UsageDoc
@@ -87,7 +92,7 @@ done
 if [ "$numopts" -eq 0 ]; then
    #NoArgs
    UsageDoc
-elif [ -z "$DESIRED_APP" -a -z "$REVERT" -a -z "$LIST_CONFIG" ]; then
+elif [ -z "$DESIRED_APP" -a -z "$REVERT" -a -z "$LIST_CONFIG" -a -z "$TOUR" ]; then
     echo "You must supply an app to modify.."
     UsageDoc
 fi
@@ -101,7 +106,7 @@ if [ -z "$REVERT" -a -z "$LIST_CONFIG" ]; then
 
    #if there is a path/url to change then do so
     if [ ! -z "$DESIRED_PATH" ]; then
-        if [[ "$DESIRED_APP" == "omxplayer" ]]; then
+        if [[ "$DESIRED_APP" == "omxplayer" && "$TOUR" == "" ]]; then
             if [[ "$CURRENT_PATH" != "$DESIRED_PATH" ]]; then
 	        #change the path in video2play (assumes all other paths are commented out)
 	        sed --in-place=.bak -e "s|\(^${CURRENT_PATH}\)|#${CURRENT_PATH}|g;" ${SCRIPT_DIR}/video2play
@@ -176,15 +181,31 @@ elif [ ! -z "$REVERT" ]; then
 fi
 
 if [ ! -z "$I_WANT_IT_NOW" ]; then
-   if [[ "$CURRENT_APP" == "midori" ]]; then
-      killall midori >/dev/null
-   else
-      killall omxplayer.bin > /dev/null
-      xrefresh -display :0
-   fi
-   UNBLANK_NOW; 
-   eval nohup $(grep -v '^#' /home/pi/scripts/app2start | grep -m1 ..) &
-   echo "App switching completed."
+    #we want it NOW
+    if [ -z "$TOUR" ]; then
+	#it is okay to kill apps
+      	if [[ "$CURRENT_APP" == "midori" ]]; then
+            killall midori >/dev/null
+        else
+            killall omxplayer.bin > /dev/null
+            xrefresh -display :0
+        fi
+        UNBLANK_NOW; 
+        #run the desired app now
+        eval nohup $(grep -v '^#' /home/pi/scripts/app2start | grep -m1 ..) &
+        echo "App switching completed."
+    else
+	UNBLANK_NOW;
+	#run omx over the browser without killing the browser
+	eval nohup $(grep -v '^#' /home/pi/scripts/tourVideo | grep -m1 ..) &
+	echo "Tour Video Began"
+	sleep 3
+	while [[ $(ps aux | grep -i omx | grep -v grep) ]]; do
+	    sleep 5;
+	done
+	xrefresh -display :0 #fixes blank screen omx bug
+	echo "Tour Video finished, returning to Midori"
+    fi
 fi
 
 if [ ! -z "$LIST_CONFIG" ]; then

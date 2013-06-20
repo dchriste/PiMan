@@ -125,8 +125,11 @@ Remote_CMD ()
 	ALL | all)
 	   #ssh keys should be configured already
 	   #along with ~/.ssh/config or /etc/hosts
-	   for $host in {1..$NUMPIS}; do
+	   for host in $(seq 1 $NUMPIS); do
 	       ssh -n rpi${host} "$(echo -n $CMD2RUN) 2>&- &"
+	       if [ "$?" -ne 0 ]; then
+		   echo "rpi${host} is not responding"
+	       fi
 	   done
 	   ;;
 	[0-$NUMPIS])
@@ -307,7 +310,6 @@ elif [[ "$BLANK" == "1" ]]; then
     echo "Screen has been blanked"'!'
 fi
 
-#note omxplayer has preference in the case it is read in.
 if [[ "$APP" != "" ]]; then
     if [[ "$APP" == "midori" ]]; then
 	if [ ! -z "$WEBPAGE" ]; then

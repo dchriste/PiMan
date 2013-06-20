@@ -97,7 +97,7 @@ elif [ -z "$DESIRED_APP" -a -z "$REVERT" -a -z "$LIST_CONFIG" -a -z "$TOUR" ]; t
     UsageDoc
 fi
 
-if [ -z "$REVERT" -a -z "$LIST_CONFIG" ]; then
+if [ -z "$REVERT" -a -z "$LIST_CONFIG" -a -z "$TOUR" ]; then
    if [[ "$CURRENT_APP" != "$DESIRED_APP" ]]; then
        #change to the desired app (which must already be in the app2start file)
        sed --in-place=.bak -e "s/\(^${CURRENT_APP}\)/#${CURRENT_APP}/g;s/\(^#${DESIRED_APP}\)/${DESIRED_APP}/g;" ${SCRIPT_DIR}/app2start

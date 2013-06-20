@@ -125,10 +125,10 @@ Remote_CMD ()
 	ALL | all)
 	   #ssh keys should be configured already
 	   #along with ~/.ssh/config or /etc/hosts
-	   for host in $(seq 1 $NUMPIS); do
-	       ssh -n rpi${host} "$(echo -n $CMD2RUN) 2>&- &"
+	   for (( i=1; i<=$NUMPIS; i++ )); do
+	       ssh -n rpi${i} "$(echo -n $CMD2RUN) 2>&- &"
 	       if [ "$?" -ne 0 ]; then
-		   echo "rpi${host} is not responding"
+		   echo "rpi${i} is not responding"
 	       fi
 	   done
 	   ;;

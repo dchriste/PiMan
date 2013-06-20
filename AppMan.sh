@@ -104,7 +104,7 @@ if [ -z "$REVERT" -a -z "$LIST_CONFIG" ]; then
         if [[ "$DESIRED_APP" == "omxplayer" ]]; then
             if [[ "$CURRENT_PATH" != "$DESIRED_PATH" ]]; then
 	        #change the path in video2play (assumes all other paths are commented out)
-	        sed --in-place=.bak -e "s_\(^${CURRENT_PATH}\)_#${CURRENT_PATH}_g;" ${SCRIPT_DIR}/video2play
+	        sed --in-place=.bak -e "s|\(^${CURRENT_PATH}\)|#${CURRENT_PATH}|g;" ${SCRIPT_DIR}/video2play
 	        echo "$DESIRED_PATH" >> ${SCRIPT_DIR}/video2play
             fi
         elif [[ "$DESIRED_APP" == "midori" ]]; then

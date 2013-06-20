@@ -170,9 +170,9 @@ SavePreviousCFG ()
 	if [ ! -z "$I_WANT_IT_NOW" ]; then
              PREVIOUS_CFG=$(echo "${PREVIOUS_CFG} now")
         fi
-
-        Remote_CMD savePrevCFG "$PI" "$PREVIOUS_CFG"
-
+	if [ ! -z "$PREVIOUS_CFG" ]; then
+             Remote_CMD savePrevCFG "$PI" "$PREVIOUS_CFG"
+	fi
     else
 	sleep 0; #revert config do not save over prev cfg
     fi

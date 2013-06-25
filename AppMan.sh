@@ -145,7 +145,7 @@ elif [ ! -z "$REVERT" ]; then
 		      I_WANT_IT_NOW=1
 		      ;;
 		  killOmx)
-		      #restart midori which is already set to run
+		      #restart omxplayer which is already set to run
 		      I_WANT_IT_NOW=1
 		      ;;
 		  path)
@@ -222,11 +222,13 @@ if [ ! -z "$LIST_CONFIG" ]; then
     else
 	echo "Screen is: not blank"
     fi
+
     runningApps=$(ps aux)
 
     if [[ $(echo "$runningApps" | grep -i omxplayer | grep -v grep) ]]; then
 	echo "Running: omxplayer"
-    elif [[ $(echo "$runningApps" | grep -i midori | grep -v grep) ]]; then
+    fi
+    if [[ $(echo "$runningApps" | grep -i midori | grep -v grep) ]]; then
 	echo "Running: midori"
     fi
     echo "Most Recent CMD(s): $(cat ${SCRIPT_DIR}/previousConfig) "

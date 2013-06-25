@@ -14,6 +14,7 @@ I_WANT_IT_NOW=""
 
 #Define Max Number of Pis in existance
 NUMPIS=3
+let ONELESSTHANMAX=$NUMPIS-1
 
 ##functions
 #usage is: UsageDoc [exit code]
@@ -26,7 +27,7 @@ UsageDoc ()
 	$0 
 	[ -b | -c [cmd] | -h | -km | -ko | -l | -m [url]
 	| -mn [url] | -o [path] | -on [path] | -p [hostname] 
-	| -pc  | -pcn | -r | -t | -u ] 
+	| -p# | -p#-# | -p#,# | -pc  | -pcn | -r | -t | -u ] 
 
 	Options:
 	-b   | --blank	      Blank the monitor using dpms
@@ -43,6 +44,7 @@ UsageDoc ()
 			      (either provided or default)
 	-on  | --omx-now      You want omxplayer now!		    
 	-p   | --pi 	      Host to control (use ALL for all) 
+	-p#  | -p#-# | -p#,#  Where # is a host,#-# is a range
 	-pc  | --prev-cfg     Reverse changes made last
 	-pcn | --prev-cfg-now Reverse changes immediately
 	-r   | --reboot       Apply the settings then reboot
@@ -124,9 +126,9 @@ Remote_CMD ()
             ;;	    
     esac
     #echo "Sending $1 command.."
-    
+
     case $2 in
-	ALL | all | A | a)
+	[Aa][lL][lL] | [Aa])
 	   #ssh keys should be configured already
 	   #along with ~/.ssh/config or /etc/hosts
 	   for (( i=1; i<=$NUMPIS; i++ )); do
@@ -136,7 +138,28 @@ Remote_CMD ()
 	       fi
 	   done
 	   ;;
-	[0-$NUMPIS])
+	[1-$ONELESSTHANMAX]-[2-$NUMPIS])
+	   #ssh keys should be configured already
+	   #along with ~/.ssh/config or /etc/hosts
+	   BOUND1=$(echo $2 | cut -f1 -d'-')
+	   BOUND2=$(echo $2 | cut -f2 -d'-')
+
+	   for (( i=$BOUND1; i<=$BOUND2; i++ )); do
+	       ssh -n rpi${i} "$(echo -n $CMD2RUN) 2>&- &"
+	       if [ "$?" -ne 0 ]; then
+		   echo "rpi${i} is not responding"
+	       fi
+	   done
+	   ;;
+	[1-$NUMPIS],[1-$NUMPIS]*)
+	   for host in $(echo "$2" | tr ',' '\n'); do
+	       ssh -n rpi${host} "$(echo -n $CMD2RUN) 2>&- &"
+	       if [ "$?" -ne 0 ]; then
+		   echo "rpi${i} is not responding"
+	       fi
+	   done
+	   ;;
+	[1-$NUMPIS])
 	   ssh -n rpi${2} "$(echo -n $CMD2RUN) 2>&- &"
 	   ;;
 	*)
@@ -251,8 +274,11 @@ while [ "$1" != "" ]; do
        shift #move positional params
        if [[ "$1" != "" && $( echo "$1" | grep -v ^-. | grep -v ^--. ) ]];then
            PI=$1
-	   if [[ ! $( echo "$PI" | egrep -i "^rpi[1-$NUMPIS]$|^[1-$NUMPIS]$|^ALL$" ) ]]; then
-	       echo "Host does not exist: $PI" && echo ""
+	   if [[ $(echo "$PI"| grep "[1-$ONELESSTHANMAX]-[2-$NUMPIS]") ]]; then
+		#valid range
+		sleep 0
+	   elif [[ ! $( echo "$PI" | egrep -i "^rpi[1-$NUMPIS]$|^[1-$NUMPIS]$|^ALL$" ) ]]; then
+	       echo "Host does not exist (note Pi max number is $NUMPIS): $PI" && echo ""
 	       exit $HOST_DNE_ERROR
 	   else
 		#host does exist
@@ -266,7 +292,7 @@ while [ "$1" != "" ]; do
 	   exit
        fi
        ;;
-    -p[0-$NUMPIS] | -pa)
+    -p[0-$NUMPIS] | -p[1-$ONELESSTHANMAX]-[2-$NUMPIS] | -p[1-$NUMPIS],[1-$NUMPIS]* | -pa)
        PI=$(echo "$1" | cut -f2 -d'p')
        ;;
     -pc | -pcn | --prev-cfg | --prev-cfg-now)
@@ -287,7 +313,7 @@ while [ "$1" != "" ]; do
 	UNBLANK=1 >&2 >&-
        ;;
     -*)
-       echo "Invalid option: -$1. See usage below..." >&2
+       echo "Invalid option: $1. See usage below..." >&2
        UsageDoc $E_ARGERROR
        ;;
      *)

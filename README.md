@@ -7,7 +7,7 @@ This is for remote raspberry pi managment.
 	./piman.sh 
 	[ -b | -c [cmd] | -h | -km | -ko | -l | -m [url]
 	| -mn [url] | -o [path] | -on [path] | -p [hostname] 
-	| -pc  | -pcn | -r | -t | -u ] 
+	| -p# | -p#-# | -p#,# | -pc  | -pcn | -r | -t | -u ] 
 
 	Options:
 	-b   | --blank	      Blank the monitor using dpms
@@ -21,6 +21,7 @@ This is for remote raspberry pi managment.
 	-o   | --omxplayer    Use Omxplayer with path, (either provided or default)
 	-on  | --omx-now      You want omxplayer now!		    
 	-p   | --pi 	      Host to control (use ALL for all) 
+	-p#  | -p#-# | -p#,#  Where # is a host,#-# is a range
 	-pc  | --prev-cfg     Reverse changes made last
 	-pcn | --prev-cfg-now Reverse changes immediately
 	-r   | --reboot       Apply the settings then reboot

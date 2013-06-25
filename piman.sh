@@ -274,7 +274,7 @@ while [ "$1" != "" ]; do
        shift #move positional params
        if [[ "$1" != "" && $( echo "$1" | grep -v ^-. | grep -v ^--. ) ]];then
            PI=$1
-	   if [[ $(echo "$PI"| grep "[1-$ONELESSTHANMAX]-[2-$NUMPIS]") ]]; then
+	   if [[ $(echo "$PI"| egrep "[1-$ONELESSTHANMAX]-[2-$NUMPIS]|[1-$NUMPIS],[1-$NUMPIS]") ]]; then
 		#valid range
 		sleep 0
 	   elif [[ ! $( echo "$PI" | egrep -i "^rpi[1-$NUMPIS]$|^[1-$NUMPIS]$|^ALL$" ) ]]; then

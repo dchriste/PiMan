@@ -1,5 +1,6 @@
 #! /bin/bash 
 
+#Variable initialization
 E_ARGERROR=2
 REBOOT_ERROR=3
 HOST_DNE_ERROR=4
@@ -12,9 +13,9 @@ WEBPAGE=""
 VIDEO_PATH=""
 I_WANT_IT_NOW=""
 
-#Define Max Number of Pis in existance
+#Define Max Number of Pis in existence
 NUMPIS=3
-let ONELESSTHANMAX=$NUMPIS-1
+let ONELESSTHANMAX=$NUMPIS-1 #for communicating to a range of hosts
 
 ##functions
 #usage is: UsageDoc [exit code]
@@ -68,6 +69,7 @@ Remote_CMD ()
 	    ;;
 	unblank)
 	    CMD2RUN="xset -display :0 s reset && ${SCRIPT_DIR}/dpms_disable.sh && xrefresh -display :0 && rm /tmp/screenblanked > /dev/null"
+	    #the xrefresh is due to a bug in omxplayer which sometimes blacks the screen.
 	    ;;
 	midori)
 	    if [ ! -z "$I_WANT_IT_NOW" ]; then
@@ -113,6 +115,7 @@ Remote_CMD ()
 	    ;;
 	savePrevCFG)
 	    #passing the string indicating what has been changed
+            #this allows for the revert command above to work
 	    CMD2RUN="mv ${SCRIPT_DIR}/previousConfig ${SCRIPT_DIR}/previousConfig.bak && echo $3 > ${SCRIPT_DIR}/previousConfig"
 	    ;;
 	 list)
@@ -120,6 +123,7 @@ Remote_CMD ()
 	    ;;
 	 cmd)
 	    CMD2RUN="$CMD2PASS"
+	    #there is no filter, any command can be passed. Quotes on the multi-word ones.
 	    ;;
 	 tour)
             CMD2RUN="${SCRIPT_DIR}/AppMan.sh --tour --now"
@@ -139,6 +143,7 @@ Remote_CMD ()
 	   done
 	   ;;
 	[1-$ONELESSTHANMAX]-[2-$NUMPIS])
+	   #this ^ allows for a dynamic range of hosts
 	   #ssh keys should be configured already
 	   #along with ~/.ssh/config or /etc/hosts
 	   BOUND1=$(echo $2 | cut -f1 -d'-')
@@ -152,6 +157,7 @@ Remote_CMD ()
 	   done
 	   ;;
 	[1-$NUMPIS],[1-$NUMPIS]*)
+	   #talk to hosts as specified, respectively
 	   for host in $(echo "$2" | tr ',' '\n'); do
 	       ssh -n rpi${host} "$(echo -n $CMD2RUN) 2>&- &"
 	       if [ "$?" -ne 0 ]; then
@@ -163,12 +169,15 @@ Remote_CMD ()
 	   ssh -n rpi${2} "$(echo -n $CMD2RUN) 2>&- &"
 	   ;;
 	*)
+	   #troubleshooting, happens if function is called without host
 	   echo "Host not specified...Who wrote this?"
 	   ;;
     esac
    
 }
 
+#this function saves the new config options (in case of revert)
+#it does not save revert, list, or command options
 SavePreviousCFG ()
 {
     
@@ -205,6 +214,8 @@ SavePreviousCFG ()
     fi
 }
 
+#saves the number of opts before processing since we use shift (the number
+#after the case will always be 0 otherwise).
 numopts=$#
 
 #Option Processing
@@ -215,9 +226,11 @@ while [ "$1" != "" ]; do
 	;;
     -c | --cmd)
         if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then
-            shift #move positional params
+            #only shift and store command if the next opt is dashless (i.e. not a switch)
+	    shift #move positional params
 	    CMD2PASS="$1"
 	else
+	    #become upset and exit with error no command passed
 	    echo "Arg $1 requires a command to be passed to it."'!'
 	    UsageDoc $E_ARGERROR
 	fi
@@ -236,10 +249,11 @@ while [ "$1" != "" ]; do
         ;;
     -m | -mn | --midori | --midori-now)
        if [ -z "$APP" ]; then
+	   #do not set app if it has already been set, someone is indecisive. 
 	   APP="midori"
        else
 	   #APP is already set, you can't have omx and midori...
-	   echo "You have already set App to $APP, pick one App not multiple."
+	   echo "You have already set App to $APP, pick one App, not multiple."
 	   exit $APP_ERROR
        fi
 
@@ -248,12 +262,14 @@ while [ "$1" != "" ]; do
        fi
 
        if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then
-           shift #move positional params
+           #shift and accept the path if provided
+	   shift #move positional params
 	   WEBPAGE=$1
        fi
        ;;
     -o | -on | --omxplayer | --omx-now)
        if [ -z "$APP" ]; then
+	   #do not set app if it has already been set, someone is indecisive.
 	   APP="omxplayer"
        else
 	   #APP is already set, you can't have omx and midori...
@@ -266,22 +282,23 @@ while [ "$1" != "" ]; do
        fi
 
        if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then
-           shift #move positional params
+           #shift and accept the path if provided
+	   shift #move positional params
 	   VIDEO_PATH=$1
        fi
        ;;
     -p | --pi)   
        shift #move positional params
        if [[ "$1" != "" && $( echo "$1" | grep -v ^-. | grep -v ^--. ) ]];then
-           PI=$1
+           PI=$1 #this works because we have shifted already
 	   if [[ $(echo "$PI"| egrep "[1-$ONELESSTHANMAX]-[2-$NUMPIS]|[1-$NUMPIS],[1-$NUMPIS]") ]]; then
-		#valid range
-		sleep 0
-	   elif [[ ! $( echo "$PI" | egrep -i "^rpi[1-$NUMPIS]$|^[1-$NUMPIS]$|^ALL$" ) ]]; then
+		#valid range or host,host format
+		sleep 0 #you cannot have a comment without a command in an if statement
+	   elif [[ ! $( echo "$PI" | egrep -i "^rpi[1-$NUMPIS]$|^[1-$NUMPIS]$|^[Aa][Ll][Ll]$" ) ]]; then
 	       echo "Host does not exist (note Pi max number is $NUMPIS): $PI" && echo ""
 	       exit $HOST_DNE_ERROR
 	   else
-		#host does exist
+	       #host does exist, filter off rpi if host is rpi1 ...
 		if [[ "$PI" =~ "rpi" ]]; then
 		    PI=$(echo "$PI" | cut -f2 -d'i')
 		fi
@@ -293,6 +310,7 @@ while [ "$1" != "" ]; do
        fi
        ;;
     -p[0-$NUMPIS] | -p[1-$ONELESSTHANMAX]-[2-$NUMPIS] | -p[1-$NUMPIS],[1-$NUMPIS]* | -pa)
+       #host is judged as valid if it passes the case condition.
        PI=$(echo "$1" | cut -f2 -d'p')
        ;;
     -pc | -pcn | --prev-cfg | --prev-cfg-now)
@@ -301,7 +319,6 @@ while [ "$1" != "" ]; do
        fi
 
        REVERT=1 >&2 >&-
-
        ;;    
     -r | --reboot)
         REBOOT=1 >&2 >&-
@@ -343,7 +360,7 @@ elif [[ "$BLANK" == "1" ]]; then
     echo "Screen has been blanked"'!'
 fi
 
-if [[ "$APP" != "" ]]; then
+if [ ! -z "$APP" ]; then
     if [[ "$APP" == "midori" ]]; then
 	if [ ! -z "$WEBPAGE" ]; then
 	    Remote_CMD midori "$PI" "$WEBPAGE"
@@ -358,12 +375,15 @@ if [[ "$APP" != "" ]]; then
 	fi
     fi
     
+    #print appropriate info
     echo -n "$APP "; if [ -z "$I_WANT_IT_NOW" ]; then 
     echo -n "set to run on reboot."; else
     echo -n "starting shortly.";fi
     echo ""
 fi
 
+#preference is given to kill midori, to change switch conditions and contents
+#to evaluate and execute separately, make into two if statements
 if [[ "$KILL_MIDORI" == "1" ]]; then
     Remote_CMD killMidori "$PI"
     echo "Application Killed.."

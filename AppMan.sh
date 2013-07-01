@@ -1,11 +1,12 @@
 #! /bin/bash
 
+#initialization and info gathering
 SCRIPT_DIR=/home/pi/scripts
 CURRENT_APP=$( grep -v '^#' ${SCRIPT_DIR}/app2start | grep -m1 .. | cut -f1 -d' ' )
 CURRENT_URL=$( grep -v '^#' ${SCRIPT_DIR}/homepage | grep -m1 .. )
 CURRENT_PATH=$( grep -v '^#' ${SCRIPT_DIR}/video2play | grep -m1 .. )
 
-
+#this function displays the help and exits appropriately
 UsageDoc ()
 {
     cat <<End-Of-Documentation
@@ -26,9 +27,10 @@ UsageDoc ()
 
 
 End-Of-Documentation
-exit
+exit $1
 }
 
+#this function unblanks the screen, needed due to omxplayer bug
 UNBLANK_NOW ()
 {
 	if [ -f /tmp/screenblanked ]; then
@@ -38,6 +40,7 @@ UNBLANK_NOW ()
 	fi
 }
 
+#record number of opts before processing, after case it would be 0
 numopts=$#
 
 #Option Processing
@@ -49,12 +52,12 @@ while [ "$1" != "" ]; do
            DESIRED_APP=$1
 	else
 	   echo "" && echo "Option -a or --app requires an argument." && echo ""
-	   UsageDoc
+	   UsageDoc 4 #exit 4 for app error
 	   exit
         fi
 	;;
     -h | --help)
-        UsageDoc #function def above
+        UsageDoc 0 #function def above
        ;;
     -l | --list)
 	LIST_CONFIG=1 >&2 >&-
@@ -68,7 +71,7 @@ while [ "$1" != "" ]; do
            DESIRED_PATH=$1
 	else
 	   echo "" && echo "Option -p or --path requires an argument." && echo ""
-	   UsageDoc
+	   UsageDoc 2 #exit 2 path error
 	   exit
         fi
        ;;
@@ -80,23 +83,23 @@ while [ "$1" != "" ]; do
        ;;
     -*)
        echo "Invalid option: -$1. See usage below..." >&2
-       UsageDoc
-       exit $E_ARGERROR
+       UsageDoc $E_ARGERROR
        ;;
      *)
-       UsageDoc
+       UsageDoc $E_ARGERROR
   esac
   shift #move positional parameters
 done
 
 if [ "$numopts" -eq 0 ]; then
    #NoArgs
-   UsageDoc
+   UsageDoc $E_ARGERROR
 elif [ -z "$DESIRED_APP" -a -z "$REVERT" -a -z "$LIST_CONFIG" -a -z "$TOUR" ]; then
     echo "You must supply an app to modify.."
-    UsageDoc
+    UsageDoc 3 #exit 3 app error
 fi
 
+#as long as we are not reverting, listing or going into tour mode
 if [ -z "$REVERT" -a -z "$LIST_CONFIG" -a -z "$TOUR" ]; then
    if [[ "$CURRENT_APP" != "$DESIRED_APP" ]]; then
        #change to the desired app (which must already be in the app2start file)
@@ -130,12 +133,14 @@ elif [ ! -z "$REVERT" ]; then
 	      case $switch in
 		  midori)
 		      APP="midori"
+		      #swap with .bak cfg since that was the previous
 		      mv ${SCRIPT_DIR}/app2start ${SCRIPT_DIR}/app2start.tmp
 		      mv ${SCRIPT_DIR}/app2start.bak ${SCRIPT_DIR}/app2start #revert
 		      mv ${SCRIPT_DIR}/app2start.tmp ${SCRIPT_DIR}/app2start.bak #back up reversion
 		      ;;
 		  omxplayer)
 		      APP="omxplayer"
+		      #swap with the .bak cfg
 		      mv ${SCRIPT_DIR}/app2start ${SCRIPT_DIR}/app2start.tmp
 		      mv ${SCRIPT_DIR}/app2start.bak ${SCRIPT_DIR}/app2start #revert
 		      mv ${SCRIPT_DIR}/app2start.tmp ${SCRIPT_DIR}/app2start.bak #back up reversion
@@ -149,6 +154,7 @@ elif [ ! -z "$REVERT" ]; then
 		      I_WANT_IT_NOW=1
 		      ;;
 		  path)
+		      #determine which path needs reverted and do it.
 		      if [[ "$APP" == "midori" ]]; then
 			  mv ${SCRIPT_DIR}/homepage ${SCRIPT_DIR}/homepage.tmp
 		          mv ${SCRIPT_DIR}/homepage.bak ${SCRIPT_DIR}/homepage #revert
@@ -166,14 +172,14 @@ elif [ ! -z "$REVERT" ]; then
 		      ;;
 	      esac
 	  else
-	      UNBLANK_NOW;
+	      UNBLANK_NOW; #if there was a reference to blank, then unblank
 	  fi 
        done
    else
        if [ $(grep -i "^blank$" ${SCRIPT_DIR}/previousConfig) ]; then
-	   UNBLANK_NOW;
+	   UNBLANK_NOW; #equivalent of using -- piman -u
        else
-	   #blank
+	   #blank -- equivalent of -- piman -b
 	   sleep 1 && xset -display :0 s blank && xset -display :0 dpms force off
 	   touch /tmp/screenblanked 
        fi
@@ -196,20 +202,26 @@ if [ ! -z "$I_WANT_IT_NOW" ]; then
         echo "App switching completed."
     else
 	UNBLANK_NOW;
+	
 	#run omx over the browser without killing the browser
+	#note command and path in tourVideo since it is static
 	eval nohup $(grep -v '^#' /home/pi/scripts/tourVideo | grep -m1 ..) &
+	
+	#comment out from the echo below to the next one to avoid having the
+	#ssh connection kept open to let you know when the tour vid is over.
 	echo "Tour Video Began"
-	sleep 3
+	sleep 3 #if we do not sleep, we check for the process before it begins
 	while [[ $(ps aux | grep -i omx | grep -v grep) ]]; do
 	    sleep 5;
 	done
-	xrefresh -display :0 #fixes blank screen omx bug
 	echo "Tour Video finished, returning to Midori"
+	
+	xrefresh -display :0 #fixes blank screen omx bug
     fi
 fi
 
 if [ ! -z "$LIST_CONFIG" ]; then
-    #Bring me that Medallion
+    #Bring me that Medallion, everyone loves Pirates of the Caribbean
     echo ""
     echo "/*************************/"
     echo "Config for $HOSTNAME:"
@@ -222,7 +234,7 @@ if [ ! -z "$LIST_CONFIG" ]; then
     else
 	echo "Screen is: not blank"
     fi
-
+    #running this once is better than twice below saves a half second generally
     runningApps=$(ps aux)
 
     if [[ $(echo "$runningApps" | grep -i omxplayer | grep -v grep) ]]; then

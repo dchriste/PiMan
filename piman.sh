@@ -100,10 +100,10 @@ Remote_CMD ()
 	    fi
 	    ;;
 	killMidori)
-	    CMD2RUN="killall midori > /dev/null"
+	CMD2RUN="killall -q midori > /dev/null; if [[ "\$?" != "0" ]]; then cp ${SCRIPT_DIR}/previousConfig.bak ${SCRIPT_DIR}/previousConfig; fi"
 	    ;;
 	killOmx)
-	    CMD2RUN="killall omxplayer.bin 2>&1>&- && sleep 1 && xrefresh -display :0"
+	    CMD2RUN="killall -q omxplayer.bin > /dev/null; if [[ "\$?" !=  "0" ]]; then cp ${SCRIPT_DIR}/previousConfig.bak ${SCRIPT_DIR}/previousConfig; fi && sleep 1 && xrefresh -display :0"
 	    ;;
 	revert)
 	    if [ ! -z "$I_WANT_IT_NOW" ]; then
@@ -386,10 +386,10 @@ fi
 #to evaluate and execute separately, make into two if statements
 if [[ "$KILL_MIDORI" == "1" ]]; then
     Remote_CMD killMidori "$PI"
-    echo "Application Killed.."
+    echo "Kill command issued.."
 elif [[ "$KILL_OMX" == "1" ]]; then
     Remote_CMD killOmx "$PI"
-    echo "Application Killed.."
+    echo "Kill command issued.."
 fi
 
 if [ ! -z "$LIST_CONFIG" ]; then

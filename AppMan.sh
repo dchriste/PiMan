@@ -191,9 +191,9 @@ if [ ! -z "$I_WANT_IT_NOW" ]; then
     if [ -z "$TOUR" ]; then
 	#it is okay to kill apps
       	if [[ "$CURRENT_APP" == "midori" ]]; then
-            killall midori >/dev/null
+            killall -q midori > /dev/null 
         else
-            killall omxplayer.bin > /dev/null
+            killall -q omxplayer.bin > /dev/null
             xrefresh -display :0
         fi
         UNBLANK_NOW; 

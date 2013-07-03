@@ -5,13 +5,15 @@ E_ARGERROR=2
 REBOOT_ERROR=3
 HOST_DNE_ERROR=4
 APP_ERROR=5
-REBOOT=0
+REBOOT=""
 SCRIPT_DIR=/home/pi/scripts
 PI=""
 APP=""
 WEBPAGE=""
 VIDEO_PATH=""
 I_WANT_IT_NOW=""
+INTERACTIVE=""
+OPTIONS="APP,BLANK,CMD2PASS,KILL_MIDORI,KILL_OMX,LIST,REVERT,REBOOT,TOUR,UNBLANK"
 
 #Define Max Number of Pis in existence
 NUMPIS=3
@@ -26,7 +28,7 @@ UsageDoc ()
     
         Usage: 
 	$0 
-	[ -b | -c [cmd] | -h | -km | -ko | -l | -m [url]
+	[ -b | -c [cmd] | -h | -i | -km | -ko | -l | -m [url]
 	| -mn [url] | -o [path] | -on [path] | -p [hostname] 
 	| -p# | -p#-# | -p#,# | -pc  | -pcn | -r | -t | -u ] 
 
@@ -35,6 +37,7 @@ UsageDoc ()
 	-c   | --cmd	      Pass a command to the machine
 			      NOTE: use "" on multi word cmds
 	-h   | --help         Show this help menu
+	-i   | --interactive  This is a simple menu control
 	-km  | --kill-midori  Kills all midori processes
 	-ko  | --kill-omx     Kills all omxplayer processes
 	-l   | --list	      List the current configuration
@@ -55,6 +58,58 @@ UsageDoc ()
 
 End-Of-Documentation
 exit $1
+}
+
+#usage is: PrintMenu [menu desired]
+PrintMenu ()
+{
+    clear 
+    case $1 in
+	action)
+    		cat <<End-Of-Documentation
+        
+    
+[ b | c [cmd] | km | ko | l | m [url] | mn [url] 
+| o [path] | on [path] | pc  | pcn | r | t | u ] 
+
+Options:
+b   |   Blank the monitor using dpms
+c   |   Pass a command to the machine
+            NOTE: use "" on multi word cmds
+km  |   Kills all midori processes
+ko  |   Kills all omxplayer processes
+l   |   List the current configuration
+m   |   Use midori with the url 
+            (either provided or default)
+mn  |   You want midori now, not later		    
+o   |   Use Omxplayer with path 
+            (either provided or default)
+on  |   You want omxplayer now!		    
+pc  |   Reverse changes made last
+pcn |   Reverse changes immediately
+r   |   Apply the settings then reboot
+t   |	 Run the Tour Video then reset
+u   |   Unblank the monitor using dpms
+
+
+Select an action to perform: 
+End-Of-Documentation
+
+	;;
+	host)
+		cat <<End-Of-Documentation
+        
+[ p# | p#-# | p#,# ] 
+
+Options:
+p#  | p#-# | p#,#  Where # is a host,#-# is a range
+
+Which host would you like to manage? 
+End-Of-Documentation
+
+	;;
+    esac
+
 }
 
 #use like: Remote_CMD [pseudo command] [host] [webpage/path]
@@ -221,10 +276,10 @@ numopts=$#
 #Option Processing
 while [ "$1" != "" ]; do
   case $1 in
-    -b | --blank)
+    -b | b | --blank)
 	BLANK=1 >&2 >&-
 	;;
-    -c | --cmd)
+    -c | c | --cmd)
         if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then
             #only shift and store command if the next opt is dashless (i.e. not a switch)
 	    shift #move positional params
@@ -235,19 +290,22 @@ while [ "$1" != "" ]; do
 	    UsageDoc $E_ARGERROR
 	fi
    	;; 
-    -h | --help)
+    -h | h | --help)
         UsageDoc 0 #function def above
        ;;
-    -km | --kill-midori)
+    -i  | i | --interactive)
+    	INTERACTIVE=1 >&2 >&-
+	;;
+    -km | km | --kill-midori)
 	KILL_MIDORI=1 >&2 >&-
 	;;
-    -ko | --kill-omx)
+    -ko | ko | --kill-omx)
 	KILL_OMX=1 >&2 >&-
 	;;
-    -l  | --list)
+    -l  | l | --list)
         LIST_CONFIG=1 >&2 >&-
         ;;
-    -m | -mn | --midori | --midori-now)
+    -m | m | -mn | mn | --midori | --midori-now)
        if [ -z "$APP" ]; then
 	   #do not set app if it has already been set, someone is indecisive. 
 	   APP="midori"
@@ -261,13 +319,13 @@ while [ "$1" != "" ]; do
 	   I_WANT_IT_NOW=1 >&2 >&-
        fi
 
-       if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then
+       if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. | egrep -i "^http.//|^https.//") ]];then
            #shift and accept the path if provided
 	   shift #move positional params
 	   WEBPAGE=$1
        fi
        ;;
-    -o | -on | --omxplayer | --omx-now)
+    -o | o | -on | on | --omxplayer | --omx-now)
        if [ -z "$APP" ]; then
 	   #do not set app if it has already been set, someone is indecisive.
 	   APP="omxplayer"
@@ -281,13 +339,13 @@ while [ "$1" != "" ]; do
 	   I_WANT_IT_NOW=1 >&2 >&-
        fi
 
-       if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then
+       if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. | grep "^/") ]];then
            #shift and accept the path if provided
 	   shift #move positional params
 	   VIDEO_PATH=$1
        fi
        ;;
-    -p | --pi)   
+    -p | p | --pi | pi)   
        shift #move positional params
        if [[ "$1" != "" && $( echo "$1" | grep -v ^-. | grep -v ^--. ) ]];then
            PI=$1 #this works because we have shifted already
@@ -313,20 +371,24 @@ while [ "$1" != "" ]; do
        #host is judged as valid if it passes the case condition.
        PI=$(echo "$1" | cut -f2 -d'p')
        ;;
-    -pc | -pcn | --prev-cfg | --prev-cfg-now)
+    p[0-$NUMPIS] | p[1-$ONELESSTHANMAX]-[2-$NUMPIS] | p[1-$NUMPIS],[1-$NUMPIS]* | pa)
+       #host is judged as valid if it passes the case condition.
+       PI=$(echo "$1" | cut -f2 -d'p')
+       ;;
+    -pc | pc | -pcn | pcn | --prev-cfg | --prev-cfg-now)
        if [[ "$1" == "-pcn" || "$1" == "--prev-cfg-now" ]]; then
 	   I_WANT_IT_NOW=1 >&2 >&-
        fi
 
        REVERT=1 >&2 >&-
        ;;    
-    -r | --reboot)
+    -r | r | --reboot)
         REBOOT=1 >&2 >&-
        ;;
-    -t | --tour)
+    -t | t | --tour)
     	TOUR=1 >&2 >&-
        ;;
-    -u | --unblank)
+    -u | u | --unblank)
 	UNBLANK=1 >&2 >&-
        ;;
     -*)
@@ -341,6 +403,106 @@ while [ "$1" != "" ]; do
   shift #move positional parameters
 done
 
+if [ ! -z "$INTERACTIVE" ]; then
+    #menu driven "gui" to run piman
+    ACTIONS=""
+    HOSTPI=""
+    if [ -z "$BLANK" -a -z "$UNBLANK" -a -z "$APP" -a -z "$TOUR" -a -z "$REBOOT" -a -z "$LIST" -a -z "$KILL_OMX" -a -z "$KILL_MIDORI" -a -z "$CMD2PASS" ]; then
+       #no actions requested, ask about it
+       until [ ! -z "$INPUT" ]; do
+           PrintMenu action
+	   read INPUT
+       done
+       ACTIONS="-$INPUT"
+    else
+        #actions already requested, which are they
+	for opt in $(echo "$OPTIONS" | tr ',' '\n'); do
+	    #if option is not empty build opt string
+	    if [ ! -z $(eval echo "\$$opt") ]; then
+		case $opt in
+		    APP)
+		       if [[ "$APP" == "midori" ]]; then
+			   if [ -z "$I_WANT_IT_NOW" ]; then
+			       OPT="m"
+			   else
+			       OPT="mn"
+			   fi
+			   if [ ! -z "$WEBPAGE" ]; then
+			       OPT=$(echo "$OPT $WEBPAGE")
+			   fi
+		       else
+		           #it is omxplayer
+			   if [ -z "$I_WANT_IT_NOW" ]; then
+			       OPT="o"
+			   else
+			       OPT="on"
+			   fi
+			   if [ ! -z "$VIDEO_PATH" ]; then
+			       OPT=$(echo "$OPT $VIDEO_PATH")
+			   fi
+		       fi
+
+		    ;;
+		    BLANK)
+		    	OPT="b"
+		    ;;
+		    CMD2PASS)
+		    	OPT=$(echo "c $CMD2PASS")
+		    ;;
+		    LIST)
+		    	OPT="l"
+		    ;;
+		    KILL_MIDORI)
+		    	OPT="km"
+		    ;;
+		    KILL_OMX)
+		    	OPT="ko"
+		    ;;
+		    REBOOT)
+		    	OPT="r"
+		    ;;
+		    REVERT)
+		    	OPT="pc"
+		    ;;
+		    TOUR)
+		    	OPT="t"
+		    ;;
+		    UNBLANK)
+		    	OPT="u"
+		    ;;
+		    *)
+		    	echo "Invalid option $opt"'!'
+			exit 140
+		    ;;
+		esac
+		ACTIONS=$(echo "$ACTIONS -$OPT")
+	    fi	
+	done
+    fi
+    if [ -z "$PI" ]; then
+       #no host specified
+       until [ ! -z "$USERINPUT" ]; do
+           PrintMenu host
+	   read  USERINPUT
+       done
+       HOSTPI="-$USERINPUT"
+    else
+       #host and action specified.. do it
+       HOSTPI="-p$PI"
+    fi 
+    
+    clear
+    #execute requested command
+    echo "executing $0 $ACTIONS $HOSTPI ..."
+    eval $(echo "$0 $ACTIONS $HOSTPI")
+
+    if [[ "$?" -eq "0" ]]; then
+    	exit 0
+    else
+	exit 1 #something went wrong
+    fi
+fi
+
 if [ "$numopts" -le 1 ]; then
    #NoArgs
    UsageDoc 0
@@ -354,10 +516,10 @@ SavePreviousCFG; #makes note of the config you chose for later
 #blank or unblank (priority to unblank) but not both
 if [[ "$UNBLANK" == "1" ]]; then
     Remote_CMD unblank "$PI"
-    echo "Screen has been activated"'!'
+    echo "Screen has been activated on rpi${PI}"'!'
 elif [[ "$BLANK" == "1" ]]; then
     Remote_CMD blank "$PI"
-    echo "Screen has been blanked"'!'
+    echo "Screen has been blanked on rpi${PI}"'!'
 fi
 
 if [ ! -z "$APP" ]; then
@@ -377,8 +539,8 @@ if [ ! -z "$APP" ]; then
     
     #print appropriate info
     echo -n "$APP "; if [ -z "$I_WANT_IT_NOW" ]; then 
-    echo -n "set to run on reboot."; else
-    echo -n "starting shortly.";fi
+    echo -n "set to run on reboot"; else
+    echo -n "starting shortly";fi; echo -n " on rpi${PI}."
     echo ""
 fi
 
@@ -386,10 +548,10 @@ fi
 #to evaluate and execute separately, make into two if statements
 if [[ "$KILL_MIDORI" == "1" ]]; then
     Remote_CMD killMidori "$PI"
-    echo "Kill command issued.."
+    echo "Kill command issued to rpi${PI} ..."
 elif [[ "$KILL_OMX" == "1" ]]; then
     Remote_CMD killOmx "$PI"
-    echo "Kill command issued.."
+    echo "Kill command issued to rpi${PI} ..."
 fi
 
 if [ ! -z "$LIST_CONFIG" ]; then
@@ -398,7 +560,7 @@ fi
 
 if [[ "$REVERT" == "1" ]]; then
     Remote_CMD revert "$PI"
-    echo "Reverted most recent changes."
+    echo "Reverted most recent changes on rpi${PI}."
 fi
 
 if [ ! -z "$CMD2PASS" ]; then
@@ -411,6 +573,6 @@ fi
 
 if [[ "$REBOOT" == "1" ]]; then
     Remote_CMD reboot "$PI"
-    echo "System $PI will reboot now"'!'
+    echo "System(s) rpi${PI} will reboot now"'!'
 fi
 

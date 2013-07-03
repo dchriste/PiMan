@@ -281,7 +281,7 @@ while [ "$1" != "" ]; do
 	BLANK=1 >&2 >&-
 	;;
     -c | c | --cmd)
-        if [[ "$2" != "" && $( echo "$2" | grep -v ^-. | grep -v ^--. ) ]];then
+        if [[ "$2" != "" && ! $( echo "$2" | grep -v ^-. | grep -v ^--. | grep "^p[1-9]") ]];then
             #only shift and store command if the next opt is dashless (i.e. not a switch)
 	    shift #move positional params
 	    CMD2PASS="$1"

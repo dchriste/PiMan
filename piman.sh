@@ -13,7 +13,7 @@ WEBPAGE=""
 VIDEO_PATH=""
 I_WANT_IT_NOW=""
 INTERACTIVE=""
-OPTIONS="APP,BLANK,CMD2PASS,KILL_MIDORI,KILL_OMX,LIST,REVERT,REBOOT,TOUR,UNBLANK"
+OPTIONS="APP,BLANK,CMD2PASS,KILL_MIDORI,KILL_OMX,LIST_CONFIG,REVERT,REBOOT,TOUR,UNBLANK"
 VALID_ACTION=""
 VALID_HOST=""
 INVALID_INPUT=""
@@ -32,7 +32,7 @@ UsageDoc ()
         
     
         Usage: 
-	$0 
+        $0	
 	[ -b | -c [cmd] | -h | -i | -km | -ko | -l | -m [url]
 	| -mn [url] | -o [path] | -on [path] | -p [hostname] 
 	| -p# | -p#-# | -p#,# | -pc  | -pcn | -r | -t | -u ] 
@@ -447,11 +447,11 @@ while [ "$1" != "" ]; do
   shift #move positional parameters
 done
 
-if [ ! -z "$INTERACTIVE" ]; then
+if [ ! -z "$INTERACTIVE" -o "$numopts" -eq 0 ]; then
     #menu driven "gui" to run piman
     ACTIONS=""
     HOSTPI=""
-    if [ -z "$BLANK" -a -z "$UNBLANK" -a -z "$APP" -a -z "$TOUR" -a -z "$REBOOT" -a -z "$LIST" -a -z "$KILL_OMX" -a -z "$KILL_MIDORI" -a -z "$CMD2PASS" ]; then
+    if [ -z "$BLANK" -a -z "$UNBLANK" -a -z "$APP" -a -z "$TOUR" -a -z "$REBOOT" -a -z "$LIST_CONFIG" -a -z "$KILL_OMX" -a -z "$KILL_MIDORI" -a -z "$CMD2PASS" ]; then
        #no actions requested, ask about it
        until [ ! -z "$INPUT" ]; do
            PrintMenu action "$INVALID_INPUT"
@@ -500,7 +500,7 @@ if [ ! -z "$INTERACTIVE" ]; then
 		    CMD2PASS)
 		    	OPT=$(echo "c $CMD2PASS")
 		    ;;
-		    LIST)
+		    LIST_CONFIG)
 		    	OPT="l"
 		    ;;
 		    KILL_MIDORI)
@@ -552,7 +552,7 @@ if [ ! -z "$INTERACTIVE" ]; then
     
     clear
     #execute requested command
-    echo "running $0 $ACTIONS $HOSTPI ..."
+    echo "running $(echo "$0" | sed -e 's|.*/||g') $ACTIONS $HOSTPI ..."
     eval $(echo "$0 $ACTIONS $HOSTPI")
 
     if [[ "$?" -eq "0" ]]; then
@@ -562,10 +562,7 @@ if [ ! -z "$INTERACTIVE" ]; then
     fi
 fi
 
-if [ "$numopts" -le 1 ]; then
-   #NoArgs
-   UsageDoc 0
-elif [ -z "$PI" ]; then
+if [ -z "$PI" ]; then
     echo "You must specify a host..."
     UsageDoc $HOST_DNE_ERROR
 fi

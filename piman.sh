@@ -14,13 +14,17 @@ VIDEO_PATH=""
 I_WANT_IT_NOW=""
 INTERACTIVE=""
 OPTIONS="APP,BLANK,CMD2PASS,KILL_MIDORI,KILL_OMX,LIST,REVERT,REBOOT,TOUR,UNBLANK"
+VALID_ACTION=""
+VALID_HOST=""
 
 #Define Max Number of Pis in existence
 NUMPIS=3
 let ONELESSTHANMAX=$NUMPIS-1 #for communicating to a range of hosts
 
-##functions
+###functions###
+#
 #usage is: UsageDoc [exit code]
+#
 UsageDoc ()
 {
     cat <<End-Of-Documentation
@@ -60,8 +64,9 @@ UsageDoc ()
 End-Of-Documentation
 exit $1
 }
-
+#
 #usage is: PrintMenu [menu desired]
+#
 PrintMenu ()
 {
     clear 
@@ -93,8 +98,8 @@ t   |	 Run the Tour Video then reset
 u   |   Unblank the monitor using dpms
 
 
-Select an action to perform: 
 End-Of-Documentation
+echo -n "Select an action to perform: " 
 
 	;;
 	host)
@@ -105,15 +110,43 @@ End-Of-Documentation
 Options:
 p#  | p#-# | p#,#  Where # is a host,#-# is a range
 
-Which host would you like to manage? 
 End-Of-Documentation
-
+echo -n "Which host would you like to manage? "
 	;;
     esac
 
 }
-
+#
+#Use ValidateAction [action or string of actions to validate]
+#
+ValidateAction ()
+{
+  for opt in $(echo "$1"); do
+      #if this is true, the option is valid
+      if [[ $(echo "$opt" | egrep "^-?[bclmortu]$|^--blank$|^--command$|^-?(km|ko|mn|on|pc|pcn)$|^--kill-midori$|^--kill-omx$|^--list$|^--midori$|^--midori-now$|^--omxplayer$|^--prev-cfg$|^--prev-cfg-now$|^--reboot$|^--unblank$") ]];then
+	  VALID_ACTION=1
+      else
+	  VALID_ACTION=""
+      fi
+  done
+}
+#
+#Use ValidateHost [host(s) to validate]
+#
+ValidateHost ()
+{
+  for arg in $(echo "$1"); do
+      #if this is true, the host is valid
+      if [[ $(echo "$arg" | egrep "^-?p[1-$NUMPIS]$|^-?p[1-$ONELESSTHANMAX]-[2-$NUMPIS]$|^-?p[1-$NUMPIS],[1-$NUMPIS].*$|^-?pa$") ]];then
+	  VALID_HOST=1
+      else
+	  VALID_HOST=""
+      fi
+  done
+}
+#
 #use like: Remote_CMD [pseudo command] [host] [webpage/path]
+#
 Remote_CMD ()
 {
     case $1 in
@@ -231,9 +264,10 @@ Remote_CMD ()
     esac
    
 }
-
+#
 #this function saves the new config options (in case of revert)
 #it does not save revert, list, or command options
+#
 SavePreviousCFG ()
 {
     
@@ -269,6 +303,7 @@ SavePreviousCFG ()
 	sleep 0; #revert config do not save over prev cfg
     fi
 }
+###End Functions###
 
 #saves the number of opts before processing since we use shift (the number
 #after the case will always be 0 otherwise).
@@ -413,6 +448,10 @@ if [ ! -z "$INTERACTIVE" ]; then
        until [ ! -z "$INPUT" ]; do
            PrintMenu action
 	   read INPUT
+	   ValidateAction "$INPUT"
+	   if [ -z "$VALID_ACTION" ]; then
+	       INPUT=""
+	   fi
        done
        ACTIONS="$INPUT"
     else
@@ -485,6 +524,10 @@ if [ ! -z "$INTERACTIVE" ]; then
        until [ ! -z "$USERINPUT" ]; do
            PrintMenu host
 	   read  USERINPUT
+	   ValidateHost "$USERINPUT"
+	   if [ -z "$VALID_HOST" ]; then
+	       USERINPUT=""
+	   fi
        done
        HOSTPI="$USERINPUT"
     else

@@ -16,6 +16,7 @@ INTERACTIVE=""
 OPTIONS="APP,BLANK,CMD2PASS,KILL_MIDORI,KILL_OMX,LIST,REVERT,REBOOT,TOUR,UNBLANK"
 VALID_ACTION=""
 VALID_HOST=""
+INVALID_INPUT=""
 
 #Define Max Number of Pis in existence
 NUMPIS=3
@@ -65,11 +66,14 @@ End-Of-Documentation
 exit $1
 }
 #
-#usage is: PrintMenu [menu desired]
+#usage is: PrintMenu [menu desired] [optional/previous error]
 #
 PrintMenu ()
 {
     clear 
+    if [ ! -z "$2" ]; then
+	echo "You previous entered '$2' which is not a valid option, try again"'!'
+    fi
     case $1 in
 	action)
     		cat <<End-Of-Documentation
@@ -99,7 +103,7 @@ u   |   Unblank the monitor using dpms
 
 
 End-Of-Documentation
-echo -n "Select an action to perform: " 
+echo -n "Select an action to perform(q to quit): " 
 
 	;;
 	host)
@@ -111,7 +115,7 @@ Options:
 p#  | p#-# | p#,#  Where # is a host,#-# is a range
 
 End-Of-Documentation
-echo -n "Which host would you like to manage? "
+echo -n "Which host would you like to manage(q to quit)? "
 	;;
     esac
 
@@ -123,24 +127,28 @@ ValidateAction ()
 {
   for opt in $(echo "$1"); do
       #if this is true, the option is valid
-      if [[ $(echo "$opt" | egrep "^-?[bclmortu]$|^--blank$|^--command$|^-?(km|ko|mn|on|pc|pcn)$|^--kill-midori$|^--kill-omx$|^--list$|^--midori$|^--midori-now$|^--omxplayer$|^--prev-cfg$|^--prev-cfg-now$|^--reboot$|^--unblank$") ]];then
+      if [[ $(echo "$opt" | egrep "^-?[bclmoqQrtu]$|^--blank$|^--command$|^-?(km|ko|mn|on|pc|pcn)$|^--kill-midori$|^--kill-omx$|^--list$|^--midori$|^--midori-now$|^--omxplayer$|^--prev-cfg$|^--prev-cfg-now$|^--reboot$|^--unblank$") ]];then
 	  VALID_ACTION=1
+	  INVALID_INPUT=""
       else
 	  VALID_ACTION=""
+	  INVALID_INPUT="$opt"
       fi
   done
 }
 #
-#Use ValidateHost [host(s) to validate]
+#Use ValidateHost [host(s) to validate] 
 #
 ValidateHost ()
 {
   for arg in $(echo "$1"); do
       #if this is true, the host is valid
-      if [[ $(echo "$arg" | egrep "^-?p[1-$NUMPIS]$|^-?p[1-$ONELESSTHANMAX]-[2-$NUMPIS]$|^-?p[1-$NUMPIS],[1-$NUMPIS].*$|^-?pa$") ]];then
+      if [[ $(echo "$arg" | egrep "^-?p[1-$NUMPIS]$|^-?p[1-$ONELESSTHANMAX]-[2-$NUMPIS]$|^-?p[1-$NUMPIS],[1-$NUMPIS].*$|^-?(q|Q|pa)$") ]];then
 	  VALID_HOST=1
+	  INVALID_INPUT=""
       else
 	  VALID_HOST=""
+	  INVALID_INPUT="$arg"
       fi
   done
 }
@@ -446,11 +454,14 @@ if [ ! -z "$INTERACTIVE" ]; then
     if [ -z "$BLANK" -a -z "$UNBLANK" -a -z "$APP" -a -z "$TOUR" -a -z "$REBOOT" -a -z "$LIST" -a -z "$KILL_OMX" -a -z "$KILL_MIDORI" -a -z "$CMD2PASS" ]; then
        #no actions requested, ask about it
        until [ ! -z "$INPUT" ]; do
-           PrintMenu action
+           PrintMenu action "$INVALID_INPUT"
 	   read INPUT
 	   ValidateAction "$INPUT"
 	   if [ -z "$VALID_ACTION" ]; then
 	       INPUT=""
+	   elif [[ $(echo "$INPUT" | egrep "^-?[qQ]$") ]]; then 
+	       echo "quitting..."
+	       exit 0
 	   fi
        done
        ACTIONS="$INPUT"
@@ -522,11 +533,14 @@ if [ ! -z "$INTERACTIVE" ]; then
     if [ -z "$PI" ]; then
        #no host specified
        until [ ! -z "$USERINPUT" ]; do
-           PrintMenu host
+           PrintMenu host "$INVALID_INPUT"
 	   read  USERINPUT
-	   ValidateHost "$USERINPUT"
+	   ValidateHost "$USERINPUT" 
 	   if [ -z "$VALID_HOST" ]; then
 	       USERINPUT=""
+	   elif [[ $(echo "$USERINPUT" | egrep "^-?[qQ]$") ]]; then 
+	       echo "quitting..."
+	       exit 0
 	   fi
        done
        HOSTPI="$USERINPUT"

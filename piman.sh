@@ -72,7 +72,14 @@ PrintMenu ()
 {
     clear 
     if [ ! -z "$2" ]; then
-	echo "You previous entered '$2' which is not a valid option, try again"'!'
+	#if there was an error say what was wrong, and if host provide host range
+	if [[ "$1" == "host" ]]; then
+	    HOST_RANGE=$(echo "1-$NUMPIS")
+	    echo "You previous entered '$2' which is not valid (valid is p${HOST_RANGE})." 
+	    echo "try again"'!'
+	else
+	    echo "You previous entered '$2' which is not a valid option, try again"'!'
+	fi
     fi
     case $1 in
 	action)
@@ -447,6 +454,25 @@ while [ "$1" != "" ]; do
   shift #move positional parameters
 done
 
+if [ -z "$PI" ]; then
+    if [ -z "$INTERACTIVE" ];then
+	#if someone forgot the host assume interactive
+	INTERACTIVE=1
+    fi
+elif [ -z "$INTERACTIVE" ];then
+    SOMEACTION=""
+    for opt in $(echo "$OPTIONS" | tr ',' '\n'); do
+	#if option is not empty build opt string
+	if [ ! -z $(eval echo "\$$opt") ]; then
+	    SOMEACTION=1
+	fi
+    done
+    #if someone forgot the action assume interactive
+    if [ -z "$SOMEACTION" ]; then
+	INTERACTIVE=1
+    fi
+fi
+
 if [ ! -z "$INTERACTIVE" -o "$numopts" -eq 0 ]; then
     #menu driven "gui" to run piman
     ACTIONS=""
@@ -562,10 +588,7 @@ if [ ! -z "$INTERACTIVE" -o "$numopts" -eq 0 ]; then
     fi
 fi
 
-if [ -z "$PI" ]; then
-    echo "You must specify a host..."
-    UsageDoc $HOST_DNE_ERROR
-fi
+
 
 SavePreviousCFG; #makes note of the config you chose for later
 

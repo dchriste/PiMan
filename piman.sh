@@ -13,7 +13,8 @@ WEBPAGE=""
 VIDEO_PATH=""
 I_WANT_IT_NOW=""
 INTERACTIVE=""
-OPTIONS="APP,BLANK,CMD2PASS,KILL_MIDORI,KILL_OMX,LIST_CONFIG,REVERT,REBOOT,TOUR,UNBLANK"
+CMD=""
+OPTIONS="APP,BLANK,CMD,KILL_MIDORI,KILL_OMX,LIST_CONFIG,REVERT,REBOOT,TOUR,UNBLANK"
 VALID_ACTION=""
 VALID_HOST=""
 INVALID_INPUT=""
@@ -132,16 +133,31 @@ echo -n "Which host would you like to manage(q to quit)? "
 #
 ValidateAction ()
 {
+   # set -x
+    DEALINGQUOTES=""
+
   for opt in $(echo "$1"); do
       #if this is true, the option is valid
-      if [[ $(echo "$opt" | egrep "^-?[bclmoqQrtu]$|^--blank$|^--command$|^-?(km|ko|mn|on|pc|pcn)$|^--kill-midori$|^--kill-omx$|^--list$|^--midori$|^--midori-now$|^--omxplayer$|^--prev-cfg$|^--prev-cfg-now$|^--reboot$|^--unblank$") ]];then
+      if [[ $(echo "$opt" | egrep "^-?[bclmoqQrtu]$|^--blank$|^--cmd$|^-?(km|ko|mn|on|pc|pcn)$|^--kill-midori$|^--kill-omx$|^--list$|^--midori$|^--midori-now$|^--omxplayer$|^--prev-cfg$|^--prev-cfg-now$|^--reboot$|^--unblank$|^https?.$|^/mnt/Share/$") ]];then
 	  VALID_ACTION=1
-	  INVALID_INPUT=""
       else
-	  VALID_ACTION=""
-	  INVALID_INPUT="$opt"
+	  if [[ $(echo "$opt" | egrep "^\".*") || ! -z "$DEALINGQUOTES" ]]; then
+	      if [[ $(echo "$opt" | egrep ".*\"$") ]]; then
+		  #read the end quote
+		  DEALINGQUOTES=""
+	      else
+                  #read begin quote or in between
+	          DEALINGQUOTES=1
+	      fi
+	  else
+	      VALID_ACTION=""
+	      INVALID_INPUT="$opt"
+	  fi
       fi
   done
+  
+  #set +x
+  #sleep 15
 }
 #
 #Use ValidateHost [host(s) to validate] 
@@ -335,6 +351,7 @@ while [ "$1" != "" ]; do
             #only shift and store command if the next opt is dashless (i.e. not a switch)
 	    shift #move positional params
 	    CMD2PASS="$1"
+	    CMD=1
 	else
 	    #become upset and exit with error no command passed
 	    echo "Arg $1 requires a command to be passed to it."'!'
@@ -366,7 +383,7 @@ while [ "$1" != "" ]; do
 	   exit $APP_ERROR
        fi
 
-       if [[ "$1" == "-mn" || "$1" == "--midori-now" ]]; then
+       if [[ $(echo "$1" | egrep "^-?mn$|^--midori-now$") ]]; then
 	   I_WANT_IT_NOW=1 >&2 >&-
        fi
 
@@ -386,7 +403,7 @@ while [ "$1" != "" ]; do
 	   exit $APP_ERROR
        fi
 
-       if [[ "$1" == "-on" || "$1" == "--omx-now" ]]; then
+       if [[ $(echo "$1" | egrep "^-?on$|^--omx-now$") ]]; then
 	   I_WANT_IT_NOW=1 >&2 >&-
        fi
 
@@ -427,7 +444,7 @@ while [ "$1" != "" ]; do
        PI=$(echo "$1" | cut -f2 -d'p')
        ;;
     -pc | pc | -pcn | pcn | --prev-cfg | --prev-cfg-now)
-       if [[ "$1" == "-pcn" || "$1" == "--prev-cfg-now" ]]; then
+       if [[ $(echo "$1" | egrep "^-?pcn$|-now$") ]]; then
 	   I_WANT_IT_NOW=1 >&2 >&-
        fi
 
@@ -472,6 +489,7 @@ elif [ -z "$INTERACTIVE" ];then
 	INTERACTIVE=1
     fi
 fi
+
 
 if [ ! -z "$INTERACTIVE" -o "$numopts" -eq 0 ]; then
     #menu driven "gui" to run piman
@@ -523,8 +541,8 @@ if [ ! -z "$INTERACTIVE" -o "$numopts" -eq 0 ]; then
 		    BLANK)
 		    	OPT="b"
 		    ;;
-		    CMD2PASS)
-		    	OPT=$(echo "c $CMD2PASS")
+		    CMD)
+		    	OPT="c \"$CMD2PASS\""
 		    ;;
 		    LIST_CONFIG)
 		    	OPT="l"
